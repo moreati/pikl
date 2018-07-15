@@ -26,8 +26,14 @@ Misc variables:
 """
 
 from types import FunctionType, BuiltinFunctionType
-from copyreg import dispatch_table
-from copyreg import _extension_registry, _inverted_registry, _extension_cache
+try:
+    # Python 3.x
+    from copyreg import dispatch_table
+    from copyreg import _extension_registry, _inverted_registry, _extension_cache
+except ImportError:
+    # Python 2.x
+    from copy_reg import dispatch_table
+    from copy_reg import _extension_registry, _inverted_registry, _extension_cache
 import marshal
 import sys
 import struct
