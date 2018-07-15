@@ -184,7 +184,7 @@ __all__.extend([x for x in dir() if re.match("[A-Z][A-Z0-9_]+$",x)])
 
 class _Pickler:
 
-    def __init__(self, file, protocol=None, *, fix_imports=True):
+    def __init__(self, file, protocol=None, fix_imports=True):
         """This takes a binary file for writing a pickle data stream.
 
         The optional protocol argument tells the pickler to use the
@@ -796,7 +796,7 @@ def whichmodule(func, funcname):
 
 class _Unpickler:
 
-    def __init__(self, file, *, fix_imports=True,
+    def __init__(self, file, fix_imports=True,
                  encoding="ASCII", errors="strict"):
         """This takes a binary file for reading a pickle data stream.
 
@@ -1466,21 +1466,21 @@ def decode_long(data):
 
 # Shorthands
 
-def _dump(obj, file, protocol=None, *, fix_imports=True):
+def _dump(obj, file, protocol=None, fix_imports=True):
     Pickler(file, protocol, fix_imports=fix_imports).dump(obj)
 
-def _dumps(obj, protocol=None, *, fix_imports=True):
+def _dumps(obj, protocol=None, fix_imports=True):
     f = io.BytesIO()
     Pickler(f, protocol, fix_imports=fix_imports).dump(obj)
     res = f.getvalue()
     assert isinstance(res, bytes_types)
     return res
 
-def _load(file, *, fix_imports=True, encoding="ASCII", errors="strict"):
+def _load(file, fix_imports=True, encoding="ASCII", errors="strict"):
     return Unpickler(file, fix_imports=fix_imports,
                      encoding=encoding, errors=errors).load()
 
-def _loads(s, *, fix_imports=True, encoding="ASCII", errors="strict"):
+def _loads(s, fix_imports=True, encoding="ASCII", errors="strict"):
     if isinstance(s, str):
         raise TypeError("Can't load pickle from unicode string")
     file = io.BytesIO(s)
