@@ -34,6 +34,7 @@ except ImportError:
     # Python 2.x
     from copy_reg import dispatch_table
     from copy_reg import _extension_registry, _inverted_registry, _extension_cache
+    range = xrange
 import marshal
 import sys
 import struct
