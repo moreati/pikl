@@ -41,7 +41,7 @@ import struct
 import re
 import io
 import codecs
-import _compat_pickle
+from zodbpickle import _compat_pickle_3 as _compat_pickle
 
 __all__ = ["PickleError", "PicklingError", "UnpicklingError", "Pickler",
            "Unpickler", "dump", "dumps", "load", "loads"]
