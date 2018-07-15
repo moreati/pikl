@@ -1,3 +1,5 @@
+from __future__ import absolute_import, division, print_function
+
 '''"Executable documentation" for the pickle module.
 
 Extensive comments about the pickle protocols and pickle-machine opcodes
