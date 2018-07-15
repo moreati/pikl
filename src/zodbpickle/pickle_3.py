@@ -1437,7 +1437,7 @@ def encode_long(x):
     """
     if x == 0:
         return b''
-    nbytes = (x.bit_length() >> 3) + 1
+    nbytes = ((len(bin(x)) - 2) >> 3) + 1
     result = x.to_bytes(nbytes, byteorder='little', signed=True)
     if x < 0 and nbytes > 1:
         if result[-1] == 0xff and (result[-2] & 0x80) != 0:
