@@ -131,6 +131,43 @@ class ExtensionSaver:
         if pair is not None:
             copy_reg.add_extension(pair[0], pair[1], code)
 
+STDLIB_EXTENSIONS = [
+    ("__builtin__", "Ellipsis"),
+    ("__builtin__", "NotImplemented"),
+    ("__builtin__", "bytearray"),
+    ("__builtin__", "bytes"),
+    # DATA2 pickle assumes that complex has extension_code 5
+    ("__builtin__", "complex"),
+    ("__builtin__", "frozenset"),
+    ("__builtin__", "object"),
+    ("__builtin__", "xrange"),
+    ("__builtin__", "set"),
+    ("__builtin__", "str"),
+    ("__builtin__", "unicode"),
+    ("_codecs", "encode"),  # Used by zodbpickle.binary()
+    #("array", "array"),
+    # collections?
+    ("copy_reg", "_reconstructor"),  # Used by object.__reduce__()
+    ("Cookie", "Morsel"),
+    ("Cookie", "SimpleCookie"),
+    #("datetime", "date"),
+    #("datetime", "datetime"),
+    #("datetime", "time"),
+    #("datetime", "timedelta"),
+    #("datetime", "tzinfo"),
+    #("decimal", "Decimal"),
+    #("fractions", "Fractions"),
+    ("os", "_make_stat_result"),
+    ("os", "_make_statvfs_result"),
+    ("time", "struct_time"),
+]
+
+for code, (module, name) in enumerate(STDLIB_EXTENSIONS, start=1):
+    copy_reg.add_extension(module, name, code)
+del code
+del module
+del name
+
 class C:
     def __cmp__(self, other):
         return cmp(self.__dict__, other.__dict__)
@@ -139,9 +176,17 @@ import __main__
 __main__.C = C
 C.__module__ = "__main__"
 
+# FIXME This changes the global extension registry, ideally each Pickler
+#       object would have it's own extension registry.
+# NB DATA2 pickle assumes that C has extension_code 240
+extension_codes = iter(xrange(240, 1024))
+copy_reg.add_extension("__main__", "C", extension_codes.next())
+
 class myint(int):
     def __init__(self, x):
         self.str = str(x)
+
+copy_reg.add_extension(__name__, "myint", extension_codes.next())
 
 class initarg(C):
 
@@ -152,11 +197,15 @@ class initarg(C):
     def __getinitargs__(self):
         return self.a, self.b
 
+copy_reg.add_extension(__name__, "initarg", extension_codes.next())
+
 class metaclass(type):
     pass
 
 class use_metaclass(object):
     __metaclass__ = metaclass
+
+copy_reg.add_extension(__name__, "use_metaclass", extension_codes.next())
 
 class pickling_metaclass(type):
     def __eq__(self, other):
@@ -178,13 +227,13 @@ copy_reg.add_extension(__name__, "create_dynamic_class", extension_codes.next())
 # DATA<n> are the pickles we expect under the various protocols, for
 # the object returned by create_data().
 
-DATA2 = ('\x80\x02]q\x01(K\x00\x8a\x01\x01G@\x00\x00\x00\x00\x00\x00\x00'
-         'c__builtin__\ncomplex\nq\x02G@\x08\x00\x00\x00\x00\x00\x00G\x00'
-         '\x00\x00\x00\x00\x00\x00\x00\x86Rq\x03K\x01J\xff\xff\xff\xffK'
-         '\xffJ\x01\xff\xff\xffJ\x00\xff\xff\xffM\xff\xffJ\x01\x00\xff\xff'
-         'J\x00\x00\xff\xffJ\xff\xff\xff\x7fJ\x01\x00\x00\x80J\x00\x00\x00'
-         '\x80(U\x03abcq\x04h\x04(c__main__\nC\nq\x05oq\x06}q\x07(U\x03foo'
-         'q\x08K\x01U\x03barq\tK\x02ubh\x06tq\nh\nK\x05e.')
+DATA2 = ('\x80\x02]q\x00(K\x00\x8a\x01\x01G@\x00\x00\x00\x00\x00\x00\x00'
+         '\x82\x05G@\x08\x00\x00\x00\x00\x00\x00G\x00\x00\x00\x00\x00\x00'
+         '\x00\x00\x86q\x01Rq\x02K\x01J\xff\xff\xff\xffK\xffJ\x01\xff\xff'
+         '\xffJ\x00\xff\xff\xffM\xff\xffJ\x01\x00\xff\xffJ\x00\x00\xff\xffJ'
+         '\xff\xff\xff\x7fJ\x01\x00\x00\x80J\x00\x00\x00\x80(U\x03abcq\x03h'
+         '\x03(\x82\xf0oq\x04}q\x05(U\x03fooq\x06K\x01U\x03barq\x07K\x02ubh'
+         '\x04tq\x08h\x08K\x05e.')
 
 # Disassembly of DATA2.
 DATA2_DIS = """\
@@ -195,51 +244,49 @@ DATA2_DIS = """\
     6: K        BININT1    0
     8: \x8a     LONG1      1L
    11: G        BINFLOAT   2.0
-   20: c        GLOBAL     '__builtin__ complex'
-   41: q        BINPUT     2
-   43: G        BINFLOAT   3.0
-   52: G        BINFLOAT   0.0
-   61: \x86     TUPLE2
-   62: R        REDUCE
-   63: q        BINPUT     3
-   65: K        BININT1    1
-   67: J        BININT     -1
-   72: K        BININT1    255
-   74: J        BININT     -255
-   79: J        BININT     -256
-   84: M        BININT2    65535
-   87: J        BININT     -65535
-   92: J        BININT     -65536
-   97: J        BININT     2147483647
-  102: J        BININT     -2147483647
-  107: J        BININT     -2147483648
-  112: (        MARK
-  113: U            SHORT_BINSTRING 'abc'
-  118: q            BINPUT     4
-  120: h            BINGET     4
-  122: (            MARK
-  123: c                GLOBAL     '__main__ C'
-  135: q                BINPUT     5
-  137: o                OBJ        (MARK at 122)
-  138: q            BINPUT     6
-  140: }            EMPTY_DICT
-  141: q            BINPUT     7
-  143: (            MARK
-  144: U                SHORT_BINSTRING 'foo'
-  149: q                BINPUT     8
-  151: K                BININT1    1
-  153: U                SHORT_BINSTRING 'bar'
-  158: q                BINPUT     9
-  160: K                BININT1    2
-  162: u                SETITEMS   (MARK at 143)
-  163: b            BUILD
-  164: h            BINGET     6
-  166: t            TUPLE      (MARK at 112)
-  167: q        BINPUT     10
-  169: h        BINGET     10
-  171: K        BININT1    5
-  173: e        APPENDS    (MARK at 5)
-  174: .    STOP
+   20: \x82     EXT1       5
+   22: G        BINFLOAT   3.0
+   31: G        BINFLOAT   0.0
+   40: \x86     TUPLE2
+   41: R        REDUCE
+   42: q        BINPUT     2
+   44: K        BININT1    1
+   46: J        BININT     -1
+   51: K        BININT1    255
+   53: J        BININT     -255
+   58: J        BININT     -256
+   63: M        BININT2    65535
+   66: J        BININT     -65535
+   71: J        BININT     -65536
+   76: J        BININT     2147483647
+   81: J        BININT     -2147483647
+   86: J        BININT     -2147483648
+   91: (        MARK
+   92: U            SHORT_BINSTRING 'abc'
+   97: q            BINPUT     3
+   99: h            BINGET     3
+  101: (            MARK
+  102: \x82             EXT1       240
+  104: o                OBJ        (MARK at 101)
+  105: q            BINPUT     4
+  107: }            EMPTY_DICT
+  108: q            BINPUT     5
+  110: (            MARK
+  111: U                SHORT_BINSTRING 'foo'
+  116: q                BINPUT     6
+  118: K                BININT1    1
+  120: U                SHORT_BINSTRING 'bar'
+  125: q                BINPUT     7
+  127: K                BININT1    2
+  129: u                SETITEMS   (MARK at 110)
+  130: b            BUILD
+  131: h            BINGET     4
+  133: t            TUPLE      (MARK at 91)
+  134: q        BINPUT     8
+  136: h        BINGET     8
+  138: K        BININT1    5
+  140: e        APPENDS    (MARK at 5)
+  141: .    STOP
 highest protocol among opcodes = 2
 """
 
@@ -354,9 +401,6 @@ class AbstractPickleTests(unittest.TestCase):
             self.assertEqual(dir(x[0]), dir(i))
             self.assertEqual(x[0].attr.keys(), [1])
             self.assertTrue(x[0].attr[1] is x)
-
-    def test_garyp(self):
-        self.assertRaises(self.error, self.loads, 'garyp')
 
     if have_unicode:
         def test_unicode(self):
@@ -631,16 +675,17 @@ class AbstractPickleTests(unittest.TestCase):
     def produce_global_ext(self, extcode, opcode):
         e = ExtensionSaver(extcode)
         try:
-            copy_reg.add_extension(__name__, "MyList", extcode)
-            x = MyList([1, 2, 3])
+            copy_reg.add_extension(__name__, "SomeonesList", extcode)
+            x = SomeonesList([1, 2, 3])
             x.foo = 42
             x.bar = "hello"
 
             # Dump using protocol 2 for test.
             s2 = self.dumps(x, 2)
             self.assertNotIn(__name__, s2)
-            self.assertNotIn("MyList", s2)
-            self.assertEqual(opcode_in_pickle(opcode, s2), True)
+            self.assertNotIn("SomeonesList", s2)
+            s2_opcodes = [op.code for op, _, _ in pickletools.genops(s2)]
+            self.assertIn(opcode, s2_opcodes)
 
             y = self.loads(s2)
             self.assertEqual(list(x), list(y))
@@ -852,12 +897,16 @@ class REX_one(object):
         return REX_one, ()
     # No __reduce_ex__ here, but inheriting it from object
 
+copy_reg.add_extension(__name__, "REX_one", extension_codes.next())
+
 class REX_two(object):
     _proto = None
     def __reduce_ex__(self, proto):
         self._proto = proto
         return REX_two, ()
     # No __reduce__ here, but inheriting it from object
+
+copy_reg.add_extension(__name__, "REX_two", extension_codes.next())
 
 class REX_three(object):
     _proto = None
@@ -867,12 +916,16 @@ class REX_three(object):
     def __reduce__(self):
         raise TestFailed, "This __reduce__ shouldn't be called"
 
+copy_reg.add_extension(__name__, "REX_three", extension_codes.next())
+
 class REX_four(object):
     _proto = None
     def __reduce_ex__(self, proto):
         self._proto = proto
         return object.__reduce_ex__(self, proto)
     # Calling base class method should succeed
+
+copy_reg.add_extension(__name__, "REX_four", extension_codes.next())
 
 class REX_five(object):
     _reduce_called = 0
@@ -884,6 +937,8 @@ class REX_five(object):
     # This one used to fail with infinite recursion;
     # on Jython 2.7rc2 it still does if super() is not used; this
     # is a bug in Jython http://bugs.jython.org/issue2323
+
+copy_reg.add_extension(__name__, "REX_five", extension_codes.next())
 
 # Test classes for newobj
 
@@ -919,14 +974,26 @@ myclasses = [MyInt, MyLong, MyFloat,
              MyStr, MyUnicode,
              MyTuple, MyList, MyDict]
 
+for cls in myclasses:
+    copy_reg.add_extension(__name__, cls.__name__, extension_codes.next())
+
+# Don't add this to extension registry at module import time, it's added &
+# removed during execution of AbstractPickleTests.produce_global_ext()
+class SomeonesList(list):
+    sample = [1, 2, 3]
+
 
 class SlotList(MyList):
     __slots__ = ["foo"]
+
+copy_reg.add_extension(__name__, "SlotList", extension_codes.next())
 
 class SimpleNewObj(object):
     def __init__(self, a, b, c):
         # raise an error, to make sure this isn't called
         raise TypeError("SimpleNewObj.__init__() didn't expect to get called")
+
+copy_reg.add_extension(__name__, "SimpleNewObj", extension_codes.next())
 
 class AbstractPickleModuleTests(unittest.TestCase):
 
@@ -1036,8 +1103,12 @@ class AAA(object):
     def __reduce__(self):
         return str, (REDUCE_A,)
 
+copy_reg.add_extension(__name__, "AAA", extension_codes.next())
+
 class BBB(object):
     pass
+
+copy_reg.add_extension(__name__, "BBB", extension_codes.next())
 
 
 class AbstractPicklerUnpicklerObjectTests(unittest.TestCase):

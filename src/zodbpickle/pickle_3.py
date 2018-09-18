@@ -700,25 +700,11 @@ class _Pickler:
                 else:
                     write(EXT4 + pack("<i", code))
                 return
-        # Non-ASCII identifiers are supported only with protocols >= 3.
-        if self.proto >= 3:
-            write(GLOBAL + bytes(module, "utf-8") + b'\n' +
-                  bytes(name, "utf-8") + b'\n')
-        else:
-            if self.fix_imports:
-                if (module, name) in _compat_pickle.REVERSE_NAME_MAPPING:
-                    module, name = _compat_pickle.REVERSE_NAME_MAPPING[(module, name)]
-                if module in _compat_pickle.REVERSE_IMPORT_MAPPING:
-                    module = _compat_pickle.REVERSE_IMPORT_MAPPING[module]
-            try:
-                write(GLOBAL + bytes(module, "ascii") + b'\n' +
-                      bytes(name, "ascii") + b'\n')
-            except UnicodeEncodeError:
-                raise PicklingError(
-                    "can't pickle global identifier '%s.%s' using "
-                    "pickle protocol %i" % (module, name, self.proto))
 
-        self.memoize(obj)
+        raise PicklingError(
+            "Can't pickle %r: %s.%s isn't in the extension registry" %
+            (obj, module, name),
+        )
 
     dispatch[FunctionType] = save_global
     dispatch[BuiltinFunctionType] = save_global
@@ -1094,10 +1080,7 @@ class _Unpickler:
         self.append(value)
 
     def load_inst(self):
-        module = self.readline()[:-1].decode("ascii")
-        name = self.readline()[:-1].decode("ascii")
-        klass = self.find_class(module, name)
-        self._instantiate(klass, self.marker())
+        raise UnpicklingError("INST opcode is not supported")
     dispatch[INST[0]] = load_inst
 
     def load_obj(self):
@@ -1115,10 +1098,7 @@ class _Unpickler:
     dispatch[NEWOBJ[0]] = load_newobj
 
     def load_global(self):
-        module = self.readline()[:-1].decode("utf-8")
-        name = self.readline()[:-1].decode("utf-8")
-        klass = self.find_class(module, name)
-        self.append(klass)
+        raise UnpicklingError("GLOBAL opcode is not supported")
     dispatch[GLOBAL[0]] = load_global
 
     def load_ext1(self):
@@ -1303,11 +1283,7 @@ class _Unpickler:
     nl_dispatch[OBJ[0]] = noload_obj
 
     def noload_inst(self):
-        self.readline() # skip module
-        self.readline()[:-1] # skip name
-        k = self.marker()
-        klass = self.stack.pop(k+1)
-        self.append(None)
+        raise UnpicklingError("INST opcode id not supported")
     nl_dispatch[INST[0]] = noload_inst
 
     def noload_newobj(self):
@@ -1317,9 +1293,7 @@ class _Unpickler:
     nl_dispatch[NEWOBJ[0]] = noload_newobj
 
     def noload_global(self):
-        self.readline() # skip module
-        self.readline()[:-1] # skip name
-        self.append(None)
+        raise UnpicklingError("GLOBAL opcode id not supported")
     nl_dispatch[GLOBAL[0]] = noload_global
 
     def noload_append(self):

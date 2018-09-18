@@ -1,3 +1,4 @@
+import copy_reg
 import cStringIO
 import io
 import unittest
@@ -8,6 +9,7 @@ from .pickletester_2 import (AbstractPickleTests,
                              AbstractPersistentPicklerTests,
                              AbstractPicklerUnpicklerObjectTests,
                              BigmemPickleTests,
+                             extension_codes,
                              has_c_implementation)
 
 from test import test_support
@@ -315,6 +317,8 @@ class cPickleBigmemPickleTests(BigmemPickleTests):
 
 class Node(object):
     pass
+
+copy_reg.add_extension(__name__, "Node", extension_codes.next())
 
 class cPickleDeepRecursive(unittest.TestCase):
 

@@ -2542,123 +2542,15 @@ save_global(PicklerObject *self, PyObject *obj, PyObject *name)
             goto error;
     }
     else {
-        /* Generate a normal global opcode if we are using a pickle
-           protocol <= 2, or if the object is not registered in the
-           extension registry. */
-        PyObject *encoded;
-        PyObject *(*unicode_encoder)(PyObject *);
+        PyErr_SetString(PicklingError,
+                        "Only binary pickle protocols are supported");
+        goto error;
 
   gen_global:
-        if (_Pickler_Write(self, &global_op, 1) < 0)
-            goto error;
-
-        /* Since Python 3.0 now supports non-ASCII identifiers, we encode both
-           the module name and the global name using UTF-8. We do so only when
-           we are using the pickle protocol newer than version 3. This is to
-           ensure compatibility with older Unpickler running on Python 2.x. */
-        if (self->proto >= 3) {
-            unicode_encoder = PyUnicode_AsUTF8String;
-        }
-        else {
-            unicode_encoder = PyUnicode_AsASCIIString;
-        }
-
-        /* For protocol < 3 and if the user didn't request against doing so,
-           we convert module names to the old 2.x module names. */
-        if (self->fix_imports) {
-            PyObject *key;
-            PyObject *item;
-
-            key = PyTuple_Pack(2, module_name, global_name);
-            if (key == NULL)
-                goto error;
-            item = PyDict_GetItemWithError(name_mapping_3to2, key);
-            Py_DECREF(key);
-            if (item) {
-                if (!PyTuple_Check(item) || PyTuple_GET_SIZE(item) != 2) {
-                    PyErr_Format(PyExc_RuntimeError,
-                                 "_compat_pickle.REVERSE_NAME_MAPPING values "
-                                 "should be 2-tuples, not %.200s",
-                                 Py_TYPE(item)->tp_name);
-                    goto error;
-                }
-                Py_CLEAR(module_name);
-                Py_CLEAR(global_name);
-                module_name = PyTuple_GET_ITEM(item, 0);
-                global_name = PyTuple_GET_ITEM(item, 1);
-                if (!PyUnicode_Check(module_name) ||
-                    !PyUnicode_Check(global_name)) {
-                    PyErr_Format(PyExc_RuntimeError,
-                                 "_compat_pickle.REVERSE_NAME_MAPPING values "
-                                 "should be pairs of str, not (%.200s, %.200s)",
-                                 Py_TYPE(module_name)->tp_name,
-                                 Py_TYPE(global_name)->tp_name);
-                    goto error;
-                }
-                Py_INCREF(module_name);
-                Py_INCREF(global_name);
-            }
-            else if (PyErr_Occurred()) {
-                goto error;
-            }
-
-            item = PyDict_GetItemWithError(import_mapping_3to2, module_name);
-            if (item) {
-                if (!PyUnicode_Check(item)) {
-                    PyErr_Format(PyExc_RuntimeError,
-                                 "_compat_pickle.REVERSE_IMPORT_MAPPING values "
-                                 "should be strings, not %.200s",
-                                 Py_TYPE(item)->tp_name);
-                    goto error;
-                }
-                Py_CLEAR(module_name);
-                module_name = item;
-                Py_INCREF(module_name);
-            }
-            else if (PyErr_Occurred()) {
-                goto error;
-            }
-        }
-
-        /* Save the name of the module. */
-        encoded = unicode_encoder(module_name);
-        if (encoded == NULL) {
-            if (PyErr_ExceptionMatches(PyExc_UnicodeEncodeError))
-                PyErr_Format(PicklingError,
-                             "can't pickle module identifier '%S' using "
-                             "pickle protocol %i", module_name, self->proto);
-            goto error;
-        }
-        if (_Pickler_Write(self, PyBytes_AS_STRING(encoded),
-                          PyBytes_GET_SIZE(encoded)) < 0) {
-            Py_DECREF(encoded);
-            goto error;
-        }
-        Py_DECREF(encoded);
-        if(_Pickler_Write(self, "\n", 1) < 0)
-            goto error;
-
-        /* Save the name of the module. */
-        encoded = unicode_encoder(global_name);
-        if (encoded == NULL) {
-            if (PyErr_ExceptionMatches(PyExc_UnicodeEncodeError))
-                PyErr_Format(PicklingError,
-                             "can't pickle global identifier '%S' using "
-                             "pickle protocol %i", global_name, self->proto);
-            goto error;
-        }
-        if (_Pickler_Write(self, PyBytes_AS_STRING(encoded),
-                          PyBytes_GET_SIZE(encoded)) < 0) {
-            Py_DECREF(encoded);
-            goto error;
-        }
-        Py_DECREF(encoded);
-        if(_Pickler_Write(self, "\n", 1) < 0)
-            goto error;
-
-        /* Memoize the object. */
-        if (memo_put(self, obj) < 0)
-            goto error;
+        PyErr_Format(PicklingError,
+                     "Can't pickle %R: %S.%S isn't in the extension registry",
+                     obj, module_name, global_name);
+        goto error;
     }
 
     if (0) {
@@ -4311,54 +4203,8 @@ load_obj(UnpicklerObject *self)
 static int
 load_inst(UnpicklerObject *self)
 {
-    PyObject *cls = NULL;
-    PyObject *args = NULL;
-    PyObject *obj = NULL;
-    PyObject *module_name;
-    PyObject *class_name;
-    Py_ssize_t len;
-    Py_ssize_t i;
-    char *s;
-
-    if ((i = marker(self)) < 0)
-        return -1;
-    if ((len = _Unpickler_Readline(self, &s)) < 0)
-        return -1;
-    if (len < 2)
-        return bad_readline();
-
-    /* Here it is safe to use PyUnicode_DecodeASCII(), even though non-ASCII
-       identifiers are permitted in Python 3.0, since the INST opcode is only
-       supported by older protocols on Python 2.x. */
-    module_name = PyUnicode_DecodeASCII(s, len - 1, "strict");
-    if (module_name == NULL)
-        return -1;
-
-    if ((len = _Unpickler_Readline(self, &s)) >= 0) {
-        if (len < 2)
-            return bad_readline();
-        class_name = PyUnicode_DecodeASCII(s, len - 1, "strict");
-        if (class_name != NULL) {
-            cls = find_class(self, module_name, class_name);
-            Py_DECREF(class_name);
-        }
-    }
-    Py_DECREF(module_name);
-
-    if (cls == NULL)
-        return -1;
-
-    if ((args = Pdata_poptuple(self->stack, i)) != NULL) {
-        obj = instantiate(cls, args);
-        Py_DECREF(args);
-    }
-    Py_DECREF(cls);
-
-    if (obj == NULL)
-        return -1;
-
-    PDATA_PUSH(self->stack, obj, -1);
-    return 0;
+    PyErr_SetString(UnpicklingError, "INST opcode is not supported");
+    return -1;
 }
 
 static int
@@ -4414,37 +4260,8 @@ load_newobj(UnpicklerObject *self)
 static int
 load_global(UnpicklerObject *self)
 {
-    PyObject *global = NULL;
-    PyObject *module_name;
-    PyObject *global_name;
-    Py_ssize_t len;
-    char *s;
-
-    if ((len = _Unpickler_Readline(self, &s)) < 0)
-        return -1;
-    if (len < 2)
-        return bad_readline();
-    module_name = PyUnicode_DecodeUTF8(s, len - 1, "strict");
-    if (!module_name)
-        return -1;
-
-    if ((len = _Unpickler_Readline(self, &s)) >= 0) {
-        if (len < 2) {
-            Py_DECREF(module_name);
-            return bad_readline();
-        }
-        global_name = PyUnicode_DecodeUTF8(s, len - 1, "strict");
-        if (global_name) {
-            global = find_class(self, module_name, global_name);
-            Py_DECREF(global_name);
-        }
-    }
-    Py_DECREF(module_name);
-
-    if (global == NULL)
-        return -1;
-    PDATA_PUSH(self->stack, global, -1);
-    return 0;
+    PyErr_SetString(UnpicklingError, "GLOBAL opcode is not supported");
+    return -1;
 }
 
 static int
@@ -5176,15 +4993,8 @@ noload_obj(UnpicklerObject *self)
 static int
 noload_inst(UnpicklerObject *self)
 {
-    int i;
-    char *s;
-
-    if ((i = marker(self)) < 0) return -1;
-    Pdata_clear(self->stack, i);
-    if (_Unpickler_Readline(self, &s) < 0) return -1;
-    if (_Unpickler_Readline(self, &s) < 0) return -1;
-    PDATA_APPEND(self->stack, Py_None, -1);
-    return 0;
+    PyErr_SetString(UnpicklingError, "INST opcode is not supported");
+    return -1;
 }
 
 static int
@@ -5207,12 +5017,8 @@ noload_newobj(UnpicklerObject *self)
 static int
 noload_global(UnpicklerObject *self)
 {
-    char *s;
-
-    if (_Unpickler_Readline(self, &s) < 0) return -1;
-    if (_Unpickler_Readline(self, &s) < 0) return -1;
-    PDATA_APPEND(self->stack, Py_None,-1);
-    return 0;
+    PyErr_SetString(UnpicklingError, "GLOBAL opcode is not supported");
+    return -1;
 }
 
 static int

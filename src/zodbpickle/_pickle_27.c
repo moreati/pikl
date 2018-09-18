@@ -2181,23 +2181,10 @@ save_global(Picklerobject *self, PyObject *args, PyObject *name)
     }
 
   gen_global:
-    if (self->write_func(self, &global, 1) < 0)
-        goto finally;
-
-    if (self->write_func(self, module_str, module_size) < 0)
-        goto finally;
-
-    if (self->write_func(self, "\n", 1) < 0)
-        goto finally;
-
-    if (self->write_func(self, name_str, name_size) < 0)
-        goto finally;
-
-    if (self->write_func(self, "\n", 1) < 0)
-        goto finally;
-
-    if (put(self, args) < 0)
-        goto finally;
+    cPickle_ErrFormat(PicklingError,
+        "Can't pickle %s: %s.%s isn't in the extension registry",
+        "OSS", args, module, global_name);
+    goto finally;
 
     res = 0;
 
@@ -3833,39 +3820,8 @@ load_obj(Unpicklerobject *self)
 static int
 load_inst(Unpicklerobject *self)
 {
-    PyObject *tup, *class=0, *obj=0, *module_name, *class_name;
-    Py_ssize_t i, len;
-    char *s;
-
-    if ((i = marker(self)) < 0) return -1;
-
-    if ((len = self->readline_func(self, &s)) < 0) return -1;
-    if (len < 2) return bad_readline();
-    module_name = PyString_FromStringAndSize(s, len - 1);
-    if (!module_name)  return -1;
-
-    if ((len = self->readline_func(self, &s)) >= 0) {
-        if (len < 2) return bad_readline();
-        if ((class_name = PyString_FromStringAndSize(s, len - 1))) {
-            class = find_class(module_name, class_name,
-                               self->find_class);
-            Py_DECREF(class_name);
-        }
-    }
-    Py_DECREF(module_name);
-
-    if (! class) return -1;
-
-    if ((tup=Pdata_popTuple(self->stack, i))) {
-        obj = Instance_New(class, tup);
-        Py_DECREF(tup);
-    }
-    Py_DECREF(class);
-
-    if (! obj) return -1;
-
-    PDATA_PUSH(self->stack, obj, -1);
-    return 0;
+    PyErr_SetString(UnpicklingError, "INST opcode is not supported");
+    return -1;
 }
 
 static int
@@ -3919,31 +3875,8 @@ load_newobj(Unpicklerobject *self)
 static int
 load_global(Unpicklerobject *self)
 {
-    PyObject *class = 0, *module_name = 0, *class_name = 0;
-    Py_ssize_t len;
-    char *s;
-
-    if ((len = self->readline_func(self, &s)) < 0) return -1;
-    if (len < 2) return bad_readline();
-    module_name = PyString_FromStringAndSize(s, len - 1);
-    if (!module_name)  return -1;
-
-    if ((len = self->readline_func(self, &s)) >= 0) {
-        if (len < 2) {
-            Py_DECREF(module_name);
-            return bad_readline();
-        }
-        if ((class_name = PyString_FromStringAndSize(s, len - 1))) {
-            class = find_class(module_name, class_name,
-                               self->find_class);
-            Py_DECREF(class_name);
-        }
-    }
-    Py_DECREF(module_name);
-
-    if (! class) return -1;
-    PDATA_PUSH(self->stack, class, -1);
-    return 0;
+    PyErr_SetString(UnpicklingError, "GLOBAL opcode is not supported");
+    return -1;
 }
 
 
@@ -4048,28 +3981,9 @@ load_dup(Unpicklerobject *self)
 static int
 load_get(Unpicklerobject *self)
 {
-    PyObject *py_str = 0, *value = 0;
-    Py_ssize_t len;
-    char *s;
-    int rc;
-
-    if ((len = self->readline_func(self, &s)) < 0) return -1;
-    if (len < 2) return bad_readline();
-
-    if (!( py_str = PyString_FromStringAndSize(s, len - 1)))  return -1;
-
-    value = PyDict_GetItem(self->memo, py_str);
-    if (! value) {
-        PyErr_SetObject(BadPickleGet, py_str);
-        rc = -1;
-    }
-    else {
-        PDATA_APPEND(self->stack, value, -1);
-        rc = 0;
-    }
-
-    Py_DECREF(py_str);
-    return rc;
+    PyErr_SetString(UnpicklingError,
+                    "Only binary pickle protocols are supported");
+    return -1;
 }
 
 
@@ -4885,15 +4799,8 @@ noload_obj(Unpicklerobject *self)
 static int
 noload_inst(Unpicklerobject *self)
 {
-    Py_ssize_t i;
-    char *s;
-
-    if ((i = marker(self)) < 0) return -1;
-    Pdata_clear(self->stack, i);
-    if (self->readline_func(self, &s) < 0) return -1;
-    if (self->readline_func(self, &s) < 0) return -1;
-    PDATA_APPEND(self->stack, Py_None, -1);
-    return 0;
+    PyErr_SetString(UnpicklingError, "INST opcode is not supported");
+    return -1;
 }
 
 static int
@@ -4916,12 +4823,8 @@ noload_newobj(Unpicklerobject *self)
 static int
 noload_global(Unpicklerobject *self)
 {
-    char *s;
-
-    if (self->readline_func(self, &s) < 0) return -1;
-    if (self->readline_func(self, &s) < 0) return -1;
-    PDATA_APPEND(self->stack, Py_None,-1);
-    return 0;
+    PyErr_SetString(UnpicklingError, "GLOBAL opcode is not supported");
+    return -1;
 }
 
 static int

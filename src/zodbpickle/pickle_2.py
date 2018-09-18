@@ -765,8 +765,11 @@ class Pickler:
                     write(EXT4 + pack("<i", code))
                 return
 
-        write(GLOBAL + module + '\n' + name + '\n')
-        self.memoize(obj)
+        raise PicklingError(
+            "Can't pickle %r: %s.%s isn't in the extension registry" %
+            (obj, module, name),
+        )
+
 
     dispatch[ClassType] = save_global
     dispatch[FunctionType] = save_global
@@ -1096,10 +1099,7 @@ class Unpickler:
         self.append(value)
 
     def load_inst(self):
-        module = self.readline()[:-1]
-        name = self.readline()[:-1]
-        klass = self.find_class(module, name)
-        self._instantiate(klass, self.marker())
+        raise UnpicklingError("INST opcode is not supported")
     dispatch[INST] = load_inst
 
     def load_obj(self):
@@ -1117,10 +1117,7 @@ class Unpickler:
     dispatch[NEWOBJ] = load_newobj
 
     def load_global(self):
-        module = self.readline()[:-1]
-        name = self.readline()[:-1]
-        klass = self.find_class(module, name)
-        self.append(klass)
+        raise UnpicklingError("GLOBAL opcode is not supported")
     dispatch[GLOBAL] = load_global
 
     def load_ext1(self):
@@ -1297,11 +1294,7 @@ class Unpickler:
     nl_dispatch[OBJ[0]] = noload_obj
 
     def noload_inst(self):
-        self.readline() # skip module
-        self.readline()[:-1] # skip name
-        k = self.marker()
-        klass = self.stack.pop(k+1)
-        self.append(None)
+        raise UnpicklingError("INST opcode is not supported")
     nl_dispatch[INST[0]] = noload_inst
 
     def noload_newobj(self):
@@ -1311,9 +1304,7 @@ class Unpickler:
     nl_dispatch[NEWOBJ[0]] = noload_newobj
 
     def noload_global(self):
-        self.readline() # skip module
-        self.readline()[:-1] # skip name
-        self.append(None)
+        raise UnpicklingError("GLOBAL opcode is not supported")
     nl_dispatch[GLOBAL[0]] = noload_global
 
     def noload_append(self):
