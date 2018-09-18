@@ -43,13 +43,13 @@ __all__.append('bytes_types')
 
 # These are purely informational; no code uses these.
 format_version = "3.0"                  # File format version we write
-compatible_formats = ["1.0",            # Original protocol 0
-                      "1.1",            # Protocol 0 with INST added
-                      "1.2",            # Original protocol 1
-                      "1.3",            # Protocol 1 with BINFLOAT added
+compatible_formats = [
                       "2.0",            # Protocol 2
                       "3.0",            # Protocol 3
                       ]                 # Old format versions we can read
+
+# This is the lowest protocol number we will read
+LOWEST_PROTOCOL = 2
 
 # This is the highest protocol number we know how to read.
 HIGHEST_PROTOCOL = 3
@@ -179,7 +179,7 @@ class _Pickler:
         """This takes a binary file for writing a pickle data stream.
 
         The optional protocol argument tells the pickler to use the
-        given protocol; supported protocols are 0, 1, 2, 3.  The default
+        given protocol; supported protocols are 2, and 3.  The default
         protocol is 3; a backward-incompatible protocol designed for
         Python 3.0.
 
@@ -201,8 +201,9 @@ class _Pickler:
             protocol = DEFAULT_PROTOCOL
         if protocol < 0:
             protocol = HIGHEST_PROTOCOL
-        elif not 0 <= protocol <= HIGHEST_PROTOCOL:
-            raise ValueError("pickle protocol must be <= %d" % HIGHEST_PROTOCOL)
+        elif not LOWEST_PROTOCOL <= protocol <= HIGHEST_PROTOCOL:
+            raise ValueError("pickle protocol must be >= %d and <= %d"
+                             % (LOWEST_PROTOCOL, HIGHEST_PROTOCOL))
         try:
             self.write = file.write
         except AttributeError:
@@ -258,7 +259,7 @@ class _Pickler:
         self.write(self.put(memo_len))
         self.memo[id(obj)] = memo_len, obj
 
-    # Return a PUT (BINPUT, LONG_BINPUT) opcode string, with argument i.
+    # Return a PUT BINPUT, or LONG_BINPUT opcode string, with argument i.
     def put(self, i, pack=struct.pack):
         if self.bin:
             if i < 256:
@@ -266,9 +267,9 @@ class _Pickler:
             else:
                 return LONG_BINPUT + pack("<I", i)
 
-        return PUT + repr(i).encode("ascii") + b'\n'
+        raise PicklingError("Only binary pickle protocols are supported")
 
-    # Return a GET (BINGET, LONG_BINGET) opcode string, with argument i.
+    # Return a BINGET, LONG_BINGET opcode string, with argument i.
     def get(self, i, pack=struct.pack):
         if self.bin:
             if i < 256:
@@ -276,7 +277,7 @@ class _Pickler:
             else:
                 return LONG_BINGET + pack("<I", i)
 
-        return GET + repr(i).encode("ascii") + b'\n'
+        raise PicklingError("Only binary pickle protocols are supported")
 
     def save(self, obj, save_persistent_id=True):
         # Check for persistent id (defined by a subclass)
@@ -352,7 +353,7 @@ class _Pickler:
             self.save(pid, save_persistent_id=False)
             self.write(BINPERSID)
         else:
-            self.write(PERSID + str(pid).encode("ascii") + b'\n')
+            raise PicklingError("Only binary pickle protocols are supported")
 
     def save_reduce(self, func, args, state=None,
                     listitems=None, dictitems=None, obj=None):
@@ -451,7 +452,7 @@ class _Pickler:
         if self.proto >= 2:
             self.write(obj and NEWTRUE or NEWFALSE)
         else:
-            self.write(obj and TRUE or FALSE)
+            raise PicklingError("Only binary pickle protocols are supported")
     dispatch[bool] = save_bool
 
     def save_long(self, obj, pack=struct.pack):
@@ -482,14 +483,14 @@ class _Pickler:
             else:
                 self.write(LONG4 + pack("<i", n) + encoded)
             return
-        self.write(LONG + repr(obj).encode("ascii") + b'L\n')
+        raise PicklingError("Only binary pickle protocols are supported")
     dispatch[int] = save_long
 
     def save_float(self, obj, pack=struct.pack):
         if self.bin:
             self.write(BINFLOAT + pack('>d', obj))
         else:
-            self.write(FLOAT + repr(obj).encode("ascii") + b'\n')
+            raise PicklingError("Only binary pickle protocols are supported")
     dispatch[float] = save_float
 
     def save_bytes(self, obj, pack=struct.pack):
@@ -514,10 +515,7 @@ class _Pickler:
             n = len(encoded)
             self.write(BINUNICODE + pack("<I", n) + encoded)
         else:
-            obj = obj.replace("\\", "\\u005c")
-            obj = obj.replace("\n", "\\u000a")
-            self.write(UNICODE + bytes(obj.encode('raw-unicode-escape')) +
-                       b'\n')
+            raise PicklingError("Only binary pickle protocols are supported")
         self.memoize(obj)
     dispatch[str] = save_str
 
@@ -530,7 +528,7 @@ class _Pickler:
             if proto:
                 write(EMPTY_TUPLE)
             else:
-                write(MARK + TUPLE)
+                raise PicklingError("Only binary pickle protocols are supported")
             return
 
         save = self.save
@@ -565,7 +563,7 @@ class _Pickler:
             if proto:
                 write(POP_MARK + get)
             else:   # proto 0 -- POP_MARK not available
-                write(POP * (n+1) + get)
+                raise PicklingError("Only binary pickle protocols are supported")
             return
 
         # No recursion.
@@ -580,7 +578,7 @@ class _Pickler:
         if self.bin:
             write(EMPTY_LIST)
         else:   # proto 0 -- can't use EMPTY_LIST
-            write(MARK + LIST)
+            raise PicklingError("Only binary pickle protocols are supported")
 
         self.memoize(obj)
         self._batch_appends(obj)
@@ -595,10 +593,7 @@ class _Pickler:
         write = self.write
 
         if not self.bin:
-            for x in items:
-                save(x)
-                write(APPEND)
-            return
+            raise PicklingError("Only binary pickle protocols are supported")
 
         items = iter(items)
         r = range(self._BATCHSIZE)
@@ -628,7 +623,7 @@ class _Pickler:
         if self.bin:
             write(EMPTY_DICT)
         else:   # proto 0 -- can't use EMPTY_DICT
-            write(MARK + DICT)
+            raise PicklingError("Only binary pickle protocols are supported")
 
         self.memoize(obj)
         self._batch_setitems(obj.items())
@@ -643,11 +638,7 @@ class _Pickler:
         write = self.write
 
         if not self.bin:
-            for k, v in items:
-                save(k)
-                save(v)
-                write(SETITEM)
-            return
+            raise PicklingError("Only binary pickle protocols are supported")
 
         items = iter(items)
         r = range(self._BATCHSIZE)
@@ -894,14 +885,13 @@ class _Unpickler:
 
     def load_proto(self):
         proto = ord(self.read(1))
-        if not 0 <= proto <= HIGHEST_PROTOCOL:
+        if not LOWEST_PROTOCOL <= proto <= HIGHEST_PROTOCOL:
             raise ValueError("unsupported pickle protocol: %d" % proto)
         self.proto = proto
     dispatch[PROTO[0]] = load_proto
 
     def load_persid(self):
-        pid = self.readline()[:-1].decode("ascii")
-        self.append(self.persistent_load(pid))
+        raise UnpicklingError("Only binary pickle protocols are supported")
     dispatch[PERSID[0]] = load_persid
 
     def load_binpersid(self):
@@ -924,9 +914,21 @@ class _Unpickler:
     def load_int(self):
         data = self.readline()
         if data == FALSE[1:]:
-            val = False
+            raise UnpicklingError("Only binary pickle protocols are supported")
         elif data == TRUE[1:]:
-            val = True
+            raise UnpicklingError("Only binary pickle protocols are supported")
+        elif len(data) > 21:
+            # INT is the most expensive opcode to unpickle, an attractive
+            # denial of service vector. Tt's also the only opcode able to
+            # represent a Python 2.x int object in the range 2**31 to 2**63.
+            #
+            # The next best option is to reject any INT with data longer than
+            # needed to represent sys.maxint from a 64-bit CPython 2.x build.
+            # Such a payload would never be generated under normal conditions.
+            #
+            # >>> len(repr(-sys.maxint)+'\n') # On a 64-bit build
+            # 21
+            raise ValueError("INT data is too long to be valid")
         else:
             try:
                 val = int(data, 0)
@@ -948,10 +950,7 @@ class _Unpickler:
     dispatch[BININT2[0]] = load_binint2
 
     def load_long(self):
-        val = self.readline()[:-1].decode("ascii")
-        if val and val[-1] == 'L':
-            val = val[:-1]
-        self.append(int(val, 0))
+        raise UnpicklingError("Only binary pickle protocols are supported")
     dispatch[LONG[0]] = load_long
 
     def load_long1(self):
@@ -970,7 +969,7 @@ class _Unpickler:
     dispatch[LONG4[0]] = load_long4
 
     def load_float(self):
-        self.append(float(self.readline()[:-1]))
+        raise UnpicklingError("Only binary pickle protocols are supported")
     dispatch[FLOAT[0]] = load_float
 
     def load_binfloat(self, unpack=struct.unpack):
@@ -989,17 +988,7 @@ class _Unpickler:
             return value.decode(self.encoding, self.errors)
 
     def load_string(self):
-        orig = self.readline()
-        rep = orig[:-1]
-        for q in (b'"', b"'"): # double or single quote
-            if rep.startswith(q):
-                if len(rep) < 2 or not rep.endswith(q):
-                    raise ValueError("insecure string pickle")
-                rep = rep[len(q):-len(q)]
-                break
-        else:
-            raise ValueError("insecure string pickle: %r" % orig)
-        self.append(self.decode_string(codecs.escape_decode(rep)[0]))
+        raise UnpicklingError("Only binary pickle protocols are supported")
     dispatch[STRING[0]] = load_string
 
     def load_binstring(self):
@@ -1019,7 +1008,7 @@ class _Unpickler:
     dispatch[BINBYTES[0]] = load_binbytes
 
     def load_unicode(self):
-        self.append(str(self.readline()[:-1], 'raw-unicode-escape'))
+        raise UnpicklingError("Only binary pickle protocols are supported")
     dispatch[UNICODE[0]] = load_unicode
 
     def load_binunicode(self, unpack=struct.unpack, maxsize=sys.maxsize):
@@ -1202,8 +1191,7 @@ class _Unpickler:
     dispatch[DUP[0]] = load_dup
 
     def load_get(self):
-        i = int(self.readline()[:-1])
-        self.append(self.memo[i])
+        raise UnpicklingError("Only binary pickle protocols are supported")
     dispatch[GET[0]] = load_get
 
     def load_binget(self):
@@ -1217,10 +1205,7 @@ class _Unpickler:
     dispatch[LONG_BINGET[0]] = load_long_binget
 
     def load_put(self):
-        i = int(self.readline()[:-1])
-        if i < 0:
-            raise ValueError("negative PUT argument")
-        self.memo[i] = self.stack[-1]
+        raise UnpicklingError("Only binary pickle protocols are supported")
     dispatch[PUT[0]] = load_put
 
     def load_binput(self):

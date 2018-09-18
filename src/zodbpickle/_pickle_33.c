@@ -6,6 +6,7 @@ PyDoc_STRVAR(pickle_module_doc,
 
 /* Bump this when new opcodes are added to the pickle protocol. */
 enum {
+    LOWEST_PROTOCOL = 2,
     HIGHEST_PROTOCOL = 3,
     DEFAULT_PROTOCOL = 3
 };
@@ -807,9 +808,10 @@ _Pickler_SetProtocol(PicklerObject *self, PyObject *proto_obj,
     }
     if (proto < 0)
         proto = HIGHEST_PROTOCOL;
-    if (proto > HIGHEST_PROTOCOL) {
-        PyErr_Format(PyExc_ValueError, "pickle protocol must be <= %d",
-                     HIGHEST_PROTOCOL);
+    if (proto < LOWEST_PROTOCOL || proto > HIGHEST_PROTOCOL) {
+        PyErr_Format(PyExc_ValueError,
+                     "pickle protocol must be >= %d and <= %d",
+                     LOWEST_PROTOCOL, HIGHEST_PROTOCOL);
         return -1;
     }
     fix_imports = PyObject_IsTrue(fix_imports_obj);
@@ -1237,10 +1239,9 @@ memo_get(PicklerObject *self, PyObject *key)
     }
 
     if (!self->bin) {
-        pdata[0] = GET;
-        PyOS_snprintf(pdata + 1, sizeof(pdata) - 1,
-                      "%" PY_FORMAT_SIZE_T "d\n", *value);
-        len = strlen(pdata);
+        PyErr_SetString(PicklingError,
+                        "Only binary pickle protocols are supported");
+        return -1;
     }
     else {
         if (*value < 256) {
@@ -1287,10 +1288,9 @@ memo_put(PicklerObject *self, PyObject *obj)
         goto error;
 
     if (!self->bin) {
-        pdata[0] = PUT;
-        PyOS_snprintf(pdata + 1, sizeof(pdata) - 1,
-                      "%" PY_FORMAT_SIZE_T "d\n", x);
-        len = strlen(pdata);
+        PyErr_SetString(PicklingError,
+                        "Only binary pickle protocols are supported");
+        return -1;
     }
     else {
         if (x < 256) {
@@ -1481,8 +1481,11 @@ save_bool(PicklerObject *self, PyObject *obj)
         if (_Pickler_Write(self, &bool_op, 1) < 0)
             return -1;
     }
-    else if (_Pickler_Write(self, buf[p], len[p]) < 0)
+    else {
+        PyErr_SetString(PicklingError,
+                        "Only binary pickle protocols are supported");
         return -1;
+    }
 
     return 0;
 }
@@ -1633,24 +1636,9 @@ save_long(PicklerObject *self, PyObject *obj)
             goto error;
     }
     else {
-        char *string;
-
-        /* proto < 2: write the repr and newline.  This is quadratic-time (in
-           the number of digits), in both directions.  We add a trailing 'L'
-           to the repr, for compatibility with Python 2.x. */
-
-        repr = PyObject_Repr(obj);
-        if (repr == NULL)
-            goto error;
-
-        string = _PyUnicode_AsStringAndSize(repr, &size);
-        if (string == NULL)
-            goto error;
-
-        if (_Pickler_Write(self, &long_op, 1) < 0 ||
-            _Pickler_Write(self, string, size) < 0 ||
-            _Pickler_Write(self, "L\n", 2) < 0)
-            goto error;
+        PyErr_SetString(PicklingError,
+                        "Only binary pickle protocols are supported");
+        goto error;
     }
 
     if (0) {
@@ -1676,75 +1664,12 @@ save_float(PicklerObject *self, PyObject *obj)
             return -1;
    }
     else {
-        int result = -1;
-        char *buf = NULL;
-        char op = FLOAT;
-
-        if (_Pickler_Write(self, &op, 1) < 0)
-            goto done;
-
-        buf = PyOS_double_to_string(x, 'g', 17, 0, NULL);
-        if (!buf) {
-            PyErr_NoMemory();
-            goto done;
-        }
-
-        if (_Pickler_Write(self, buf, strlen(buf)) < 0)
-            goto done;
-
-        if (_Pickler_Write(self, "\n", 1) < 0)
-            goto done;
-
-        result = 0;
-done:
-        PyMem_Free(buf);
-        return result;
+        PyErr_SetString(PicklingError,
+                        "Only binary pickle protocols are supported");
+        return -1;
     }
 
     return 0;
-}
-
-/* Essentially PyObject_Repr(obj) for bytes, but it returns bytes, doesn't add
-   the b prefix nor the quotes. */
-static PyObject *
-raw_bytes_escape(PyObject *obj)
-{
-    PyObject *repr, *result;
-    Py_ssize_t i, size;
-    char *data, *p;
-
-    size = PyBytes_GET_SIZE(obj);
-    data = PyBytes_AS_STRING(obj);
-
-    if (size > PY_SSIZE_T_MAX / 4)
-        return PyErr_NoMemory();
-    repr = PyByteArray_FromStringAndSize(NULL, size * 4);
-    if (repr == NULL)
-        return NULL;
-    if (size == 0)
-        goto done;
-
-    p = PyByteArray_AS_STRING(repr);
-    for (i=0; i < size; i++) {
-        char ch = data[i];
-        /* Map control characters, non-ASCII characters, apostrophe and
-         * backslash to '\xXX' */
-        if (ch < 0x20 || ch >= 0x80 || ch == '\'' || ch == '\\') {
-            *p++ = '\\';
-            *p++ = 'x';
-            *p++ = Py_hexdigits[(ch >> 4) & 0xf];
-            *p++ = Py_hexdigits[ch & 0xf];
-        }
-        /* Copy everything else as-is */
-        else
-            *p++ = ch;
-    }
-    size = p - PyByteArray_AS_STRING(repr);
-
-done:
-    result = PyBytes_FromStringAndSize(PyByteArray_AS_STRING(repr), size);
-    Py_DECREF(repr);
-    return result;
 }
 
 static int
@@ -1808,32 +1733,8 @@ save_bytes(PicklerObject *self, PyObject *obj)
         return status;
     }
     else if (!self->bin) {
-        const char string_op = STRING;
-        PyObject *encoded = NULL;
-        Py_ssize_t size;
-
-        encoded = raw_bytes_escape(obj);
-        if (encoded == NULL)
-            goto error;
-
-        if (_Pickler_Write(self, &string_op, 1) < 0)
-            goto error;
-
-        if (_Pickler_Write(self, "'", 1) < 0)
-            goto error;
-
-        size = PyBytes_GET_SIZE(encoded);
-        if (_Pickler_Write(self, PyBytes_AS_STRING(encoded), size) < 0)
-            goto error;
-
-        if (_Pickler_Write(self, "'\n", 2) < 0)
-            goto error;
-
-        Py_DECREF(encoded);
-        return 0;
-
-      error:
-        Py_XDECREF(encoded);
+        PyErr_SetString(PicklingError,
+                        "Only binary pickle protocols are supported");
         return -1;
     }
     else {
@@ -1877,73 +1778,6 @@ save_bytes(PicklerObject *self, PyObject *obj)
     }
 }
 
-/* A copy of PyUnicode_EncodeRawUnicodeEscape() that also translates
-   backslash and newline characters to \uXXXX escapes. */
-static PyObject *
-raw_unicode_escape(PyObject *obj)
-{
-    PyObject *repr, *result;
-    char *p;
-    Py_ssize_t i, size, expandsize;
-    void *data;
-    unsigned int kind;
-
-    if (PyUnicode_READY(obj))
-        return NULL;
-
-    size = PyUnicode_GET_LENGTH(obj);
-    data = PyUnicode_DATA(obj);
-    kind = PyUnicode_KIND(obj);
-    if (kind == PyUnicode_4BYTE_KIND)
-        expandsize = 10;
-    else
-        expandsize = 6;
-
-    if (size > PY_SSIZE_T_MAX / expandsize)
-        return PyErr_NoMemory();
-    repr = PyByteArray_FromStringAndSize(NULL, expandsize * size);
-    if (repr == NULL)
-        return NULL;
-    if (size == 0)
-        goto done;
-
-    p = PyByteArray_AS_STRING(repr);
-    for (i=0; i < size; i++) {
-        Py_UCS4 ch = PyUnicode_READ(kind, data, i);
-        /* Map 32-bit characters to '\Uxxxxxxxx' */
-        if (ch >= 0x10000) {
-            *p++ = '\\';
-            *p++ = 'U';
-            *p++ = Py_hexdigits[(ch >> 28) & 0xf];
-            *p++ = Py_hexdigits[(ch >> 24) & 0xf];
-            *p++ = Py_hexdigits[(ch >> 20) & 0xf];
-            *p++ = Py_hexdigits[(ch >> 16) & 0xf];
-            *p++ = Py_hexdigits[(ch >> 12) & 0xf];
-            *p++ = Py_hexdigits[(ch >> 8) & 0xf];
-            *p++ = Py_hexdigits[(ch >> 4) & 0xf];
-            *p++ = Py_hexdigits[ch & 15];
-        }
-        /* Map 16-bit characters to '\uxxxx' */
-        else if (ch >= 256 || ch == '\\' || ch == '\n') {
-            *p++ = '\\';
-            *p++ = 'u';
-            *p++ = Py_hexdigits[(ch >> 12) & 0xf];
-            *p++ = Py_hexdigits[(ch >> 8) & 0xf];
-            *p++ = Py_hexdigits[(ch >> 4) & 0xf];
-            *p++ = Py_hexdigits[ch & 15];
-        }
-        /* Copy everything else as-is */
-        else
-            *p++ = (char) ch;
-    }
-    size = p - PyByteArray_AS_STRING(repr);
-
-done:
-    result = PyBytes_FromStringAndSize(PyByteArray_AS_STRING(repr), size);
-    Py_DECREF(repr);
-    return result;
-}
-
 static int
 save_unicode(PicklerObject *self, PyObject *obj)
 {
@@ -1977,21 +1811,9 @@ save_unicode(PicklerObject *self, PyObject *obj)
             goto error;
     }
     else {
-        const char unicode_op = UNICODE;
-
-        encoded = raw_unicode_escape(obj);
-        if (encoded == NULL)
-            goto error;
-
-        if (_Pickler_Write(self, &unicode_op, 1) < 0)
-            goto error;
-
-        size = PyBytes_GET_SIZE(encoded);
-        if (_Pickler_Write(self, PyBytes_AS_STRING(encoded), size) < 0)
-            goto error;
-
-        if (_Pickler_Write(self, "\n", 1) < 0)
-            goto error;
+        PyErr_SetString(PicklingError,
+                        "Only binary pickle protocols are supported");
+        return -1;
     }
     if (memo_put(self, obj) < 0)
         goto error;
@@ -2052,9 +1874,9 @@ save_tuple(PicklerObject *self, PyObject *obj)
             len = 1;
         }
         else {
-            pdata[0] = MARK;
-            pdata[1] = TUPLE;
-            len = 2;
+            PyErr_SetString(PicklingError,
+                            "Only binary pickle protocols are supported");
+            return -1;
         }
         if (_Pickler_Write(self, pdata, len) < 0)
             return -1;
@@ -2155,22 +1977,9 @@ batch_list(PicklerObject *self, PyObject *iter)
     */
 
     if (self->proto == 0) {
-        /* APPENDS isn't available; do one at a time. */
-        for (;;) {
-            obj = PyIter_Next(iter);
-            if (obj == NULL) {
-                if (PyErr_Occurred())
-                    return -1;
-                break;
-            }
-            i = save(self, obj, 0);
-            Py_DECREF(obj);
-            if (i < 0)
-                return -1;
-            if (_Pickler_Write(self, &append_op, 1) < 0)
-                return -1;
-        }
-        return 0;
+        PyErr_SetString(PicklingError,
+                        "Only binary pickle protocols are supported");
+        return -1;
     }
 
     /* proto > 0:  write in batches of BATCHSIZE. */
@@ -2313,9 +2122,9 @@ save_list(PicklerObject *self, PyObject *obj)
         len = 1;
     }
     else {
-        header[0] = MARK;
-        header[1] = LIST;
-        len = 2;
+        PyErr_SetString(PicklingError,
+                        "Only binary pickle protocols are supported");
+        goto error;
     }
 
     if (_Pickler_Write(self, header, len) < 0)
@@ -2385,29 +2194,9 @@ batch_dict(PicklerObject *self, PyObject *iter)
     assert(iter != NULL);
 
     if (self->proto == 0) {
-        /* SETITEMS isn't available; do one at a time. */
-        for (;;) {
-            obj = PyIter_Next(iter);
-            if (obj == NULL) {
-                if (PyErr_Occurred())
-                    return -1;
-                break;
-            }
-            if (!PyTuple_Check(obj) || PyTuple_Size(obj) != 2) {
-                PyErr_SetString(PyExc_TypeError, "dict items "
-                                "iterator must return 2-tuples");
-                return -1;
-            }
-            i = save(self, PyTuple_GET_ITEM(obj, 0), 0);
-            if (i >= 0)
-                i = save(self, PyTuple_GET_ITEM(obj, 1), 0);
-            Py_DECREF(obj);
-            if (i < 0)
-                return -1;
-            if (_Pickler_Write(self, &setitem_op, 1) < 0)
-                return -1;
-        }
-        return 0;
+        PyErr_SetString(PicklingError,
+                        "Only binary pickle protocols are supported");
+        return -1;
     }
 
     /* proto > 0:  write in batches of BATCHSIZE. */
@@ -2573,9 +2362,9 @@ save_dict(PicklerObject *self, PyObject *obj)
         len = 1;
     }
     else {
-        header[0] = MARK;
-        header[1] = DICT;
-        len = 2;
+        PyErr_SetString(PicklingError,
+                        "Only binary pickle protocols are supported");
+        goto error;
     }
 
     if (_Pickler_Write(self, header, len) < 0)
@@ -2928,26 +2717,9 @@ save_pers(PicklerObject *self, PyObject *obj, PyObject *func)
                 goto error;
         }
         else {
-            PyObject *pid_str = NULL;
-            char *pid_ascii_bytes;
-            Py_ssize_t size;
-
-            pid_str = PyObject_Str(pid);
-            if (pid_str == NULL)
-                goto error;
-
-            /* XXX: Should it check whether the persistent id only contains
-               ASCII characters? And what if the pid contains embedded
-               newlines? */
-            pid_ascii_bytes = _PyUnicode_AsStringAndSize(pid_str, &size);
-            Py_DECREF(pid_str);
-            if (pid_ascii_bytes == NULL)
-                goto error;
-
-            if (_Pickler_Write(self, &persid_op, 1) < 0 ||
-                _Pickler_Write(self, pid_ascii_bytes, size) < 0 ||
-                _Pickler_Write(self, "\n", 1) < 0)
-                goto error;
+            PyErr_SetString(PicklingError,
+                            "Only binary pickle protocols are supported");
+            goto error;
         }
         status = 1;
     }
@@ -3398,6 +3170,11 @@ dump(PicklerObject *self, PyObject *obj)
         if (_Pickler_Write(self, header, 2) < 0)
             return -1;
     }
+    else {
+        PyErr_SetString(PicklingError,
+                        "Only binary pickle protocols are supported");
+        return -1;
+    }
 
     if (save(self, obj, 0) < 0 ||
         _Pickler_Write(self, &stop_op, 1) < 0)
@@ -3517,7 +3294,7 @@ PyDoc_STRVAR(Pickler_doc,
 "This takes a binary file for writing a pickle data stream.\n"
 "\n"
 "The optional protocol argument tells the pickler to use the\n"
-"given protocol; supported protocols are 0, 1, 2, 3.  The default\n"
+"given protocol; supported protocols are 2, and 3.  The default\n"
 "protocol is 3; a backward-incompatible protocol designed for\n"
 "Python 3.0.\n"
 "\n"
@@ -3981,6 +3758,11 @@ load_int(UnpicklerObject *self)
         return -1;
     if (len < 2)
         return bad_readline();
+    if (len > 21) {
+        PyErr_SetString(PyExc_ValueError,
+                        "INT data is too long to be valid");
+        return -1;
+    }
 
     errno = 0;
     /* XXX: Should the base argument of strtol() be explicitly set to 10?
@@ -4001,8 +3783,9 @@ load_int(UnpicklerObject *self)
     }
     else {
         if (len == 3 && (x == 0 || x == 1)) {
-            if ((value = PyBool_FromLong(x)) == NULL)
-                return -1;
+            PyErr_SetString(UnpicklingError,
+                            "Only binary pickle protocols are supported");
+            return -1;
         }
         else {
             if ((value = PyLong_FromLong(x)) == NULL)
@@ -4122,28 +3905,9 @@ load_binint2(UnpicklerObject *self)
 static int
 load_long(UnpicklerObject *self)
 {
-    PyObject *value;
-    char *s;
-    Py_ssize_t len;
-
-    if ((len = _Unpickler_Readline(self, &s)) < 0)
-        return -1;
-    if (len < 2)
-        return bad_readline();
-
-    /* s[len-2] will usually be 'L' (and s[len-1] is '\n'); we need to remove
-       the 'L' before calling PyLong_FromString.  In order to maintain
-       compatibility with Python 3.0.0, we don't actually *require*
-       the 'L' to be present. */
-    if (s[len-2] == 'L')
-        s[len-2] = '\0';
-    /* XXX: Should the base argument explicitly set to 10? */
-    value = PyLong_FromString(s, NULL, 0);
-    if (value == NULL)
-        return -1;
-
-    PDATA_PUSH(self->stack, value, -1);
-    return 0;
+    PyErr_SetString(UnpicklingError,
+                    "Only binary pickle protocols are supported");
+    return -1;
 }
 
 /* 'size' bytes contain the # of bytes of little-endian 256's-complement
@@ -4186,30 +3950,9 @@ load_counted_long(UnpicklerObject *self, int size)
 static int
 load_float(UnpicklerObject *self)
 {
-    PyObject *value;
-    char *endptr, *s;
-    Py_ssize_t len;
-    double d;
-
-    if ((len = _Unpickler_Readline(self, &s)) < 0)
-        return -1;
-    if (len < 2)
-        return bad_readline();
-
-    errno = 0;
-    d = PyOS_string_to_double(s, &endptr, PyExc_OverflowError);
-    if (d == -1.0 && PyErr_Occurred())
-        return -1;
-    if ((endptr[0] != '\n') && (endptr[0] != '\0')) {
-        PyErr_SetString(PyExc_ValueError, "could not convert string to float");
-        return -1;
-    }
-    value = PyFloat_FromDouble(d);
-    if (value == NULL)
-        return -1;
-
-    PDATA_PUSH(self->stack, value, -1);
-    return 0;
+    PyErr_SetString(UnpicklingError,
+                    "Only binary pickle protocols are supported");
+    return -1;
 }
 
 static int
@@ -4258,52 +4001,9 @@ decode_string(UnpicklerObject *self, PyObject *value)
 static int
 load_string(UnpicklerObject *self)
 {
-    PyObject *bytes;
-    PyObject *str = NULL;
-    Py_ssize_t len;
-    char *s, *p;
-
-    if ((len = _Unpickler_Readline(self, &s)) < 0)
-        return -1;
-    if (len < 2)
-        return bad_readline();
-    if ((s = strdup(s)) == NULL) {
-        PyErr_NoMemory();
-        return -1;
-    }
-
-    /* Strip outermost quotes */
-    while (len > 0 && s[len - 1] <= ' ')
-        len--;
-    if (len > 1 && s[0] == '"' && s[len - 1] == '"') {
-        s[len - 1] = '\0';
-        p = s + 1;
-        len -= 2;
-    }
-    else if (len > 1 && s[0] == '\'' && s[len - 1] == '\'') {
-        s[len - 1] = '\0';
-        p = s + 1;
-        len -= 2;
-    }
-    else {
-        free(s);
-        PyErr_SetString(PyExc_ValueError, "insecure string pickle");
-        return -1;
-    }
-
-    /* Use the PyBytes API to decode the string, since that is what is used
-       to encode, and then coerce the result to Unicode. */
-    bytes = PyBytes_DecodeEscape(p, len, NULL, 0, NULL);
-    free(s);
-    if (bytes == NULL)
-        return -1;
-    str = decode_string(self, bytes);
-    Py_DECREF(bytes);
-    if (str == NULL)
-        return -1;
-
-    PDATA_PUSH(self->stack, str, -1);
-    return 0;
+    PyErr_SetString(UnpicklingError,
+                    "Only binary pickle protocols are supported");
+    return -1;
 }
 
 static int
@@ -4424,21 +4124,9 @@ load_short_binstring(UnpicklerObject *self)
 static int
 load_unicode(UnpicklerObject *self)
 {
-    PyObject *str;
-    Py_ssize_t len;
-    char *s;
-
-    if ((len = _Unpickler_Readline(self, &s)) < 0)
-        return -1;
-    if (len < 1)
-        return bad_readline();
-
-    str = PyUnicode_DecodeRawUnicodeEscape(s, len - 1, NULL);
-    if (str == NULL)
-        return -1;
-
-    PDATA_PUSH(self->stack, str, -1);
-    return 0;
+    PyErr_SetString(UnpicklingError,
+                    "Only binary pickle protocols are supported");
+    return -1;
 }
 
 static int
@@ -4762,35 +4450,9 @@ load_global(UnpicklerObject *self)
 static int
 load_persid(UnpicklerObject *self)
 {
-    PyObject *pid;
-    Py_ssize_t len;
-    char *s;
-
-    if (self->pers_func) {
-        if ((len = _Unpickler_Readline(self, &s)) < 0)
-            return -1;
-        if (len < 2)
-            return bad_readline();
-
-        pid = PyBytes_FromStringAndSize(s, len - 1);
-        if (pid == NULL)
-            return -1;
-
-        /* Ugh... this does not leak since _Unpickler_FastCall() steals the
-           reference to pid first. */
-        pid = _Unpickler_FastCall(self, self->pers_func, pid);
-        if (pid == NULL)
-            return -1;
-
-        PDATA_PUSH(self->stack, pid, -1);
-        return 0;
-    }
-    else {
-        PyErr_SetString(UnpicklingError,
-                        "A load persistent id instruction was encountered,\n"
-                        "but no persistent_load function was specified.");
-        return -1;
-    }
+    PyErr_SetString(UnpicklingError,
+                    "Only binary pickle protocols are supported");
+    return -1;
 }
 
 static int
@@ -4873,36 +4535,9 @@ load_dup(UnpicklerObject *self)
 static int
 load_get(UnpicklerObject *self)
 {
-    PyObject *key, *value;
-    Py_ssize_t idx;
-    Py_ssize_t len;
-    char *s;
-
-    if ((len = _Unpickler_Readline(self, &s)) < 0)
-        return -1;
-    if (len < 2)
-        return bad_readline();
-
-    key = PyLong_FromString(s, NULL, 10);
-    if (key == NULL)
-        return -1;
-    idx = PyLong_AsSsize_t(key);
-    if (idx == -1 && PyErr_Occurred()) {
-        Py_DECREF(key);
-        return -1;
-    }
-
-    value = _Unpickler_MemoGet(self, idx);
-    if (value == NULL) {
-        if (!PyErr_Occurred())
-            PyErr_SetObject(PyExc_KeyError, key);
-        Py_DECREF(key);
-        return -1;
-    }
-    Py_DECREF(key);
-
-    PDATA_APPEND(self->stack, value, -1);
-    return 0;
+    PyErr_SetString(UnpicklingError,
+                    "Only binary pickle protocols are supported");
+    return -1;
 }
 
 static int
@@ -5029,32 +4664,9 @@ load_extension(UnpicklerObject *self, int nbytes)
 static int
 load_put(UnpicklerObject *self)
 {
-    PyObject *key, *value;
-    Py_ssize_t idx;
-    Py_ssize_t len;
-    char *s;
-
-    if ((len = _Unpickler_Readline(self, &s)) < 0)
-        return -1;
-    if (len < 2)
-        return bad_readline();
-    if (Py_SIZE(self->stack) <= 0)
-        return stack_underflow();
-    value = self->stack->data[Py_SIZE(self->stack) - 1];
-
-    key = PyLong_FromString(s, NULL, 10);
-    if (key == NULL)
-        return -1;
-    idx = PyLong_AsSsize_t(key);
-    Py_DECREF(key);
-    if (idx < 0) {
-        if (!PyErr_Occurred())
-            PyErr_SetString(PyExc_ValueError,
-                            "negative PUT argument");
-        return -1;
-    }
-
-    return _Unpickler_MemoPut(self, idx, value);
+    PyErr_SetString(UnpicklingError,
+                    "Only binary pickle protocols are supported");
+    return -1;
 }
 
 static int
@@ -5407,7 +5019,7 @@ load_proto(UnpicklerObject *self)
         return -1;
 
     i = (unsigned char)s[0];
-    if (i <= HIGHEST_PROTOCOL) {
+    if (i >= LOWEST_PROTOCOL && i <= HIGHEST_PROTOCOL) {
         self->proto = i;
         return 0;
     }

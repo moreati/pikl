@@ -46,7 +46,7 @@ class FileIOMixin:
 
 class PickleTests(AbstractPickleTests, AbstractPickleModuleTests):
 
-    def dumps(self, arg, proto=0, fast=0):
+    def dumps(self, arg, proto=2, fast=0):
         from zodbpickle.pickle_2 import dumps
         # Ignore fast
         return dumps(arg, proto)
@@ -68,7 +68,7 @@ class PicklerTests(AbstractPickleTests):
 
     error = KeyError
 
-    def dumps(self, arg, proto=0, fast=0):
+    def dumps(self, arg, proto=2, fast=0):
         from zodbpickle.pickle_2 import Pickler
         f = cStringIO.StringIO()
         p = Pickler(f, proto)
@@ -87,7 +87,7 @@ class PicklerTests(AbstractPickleTests):
 
 class PersPicklerTests(AbstractPersistentPicklerTests):
 
-    def dumps(self, arg, proto=0, fast=0):
+    def dumps(self, arg, proto=2, fast=0):
         from zodbpickle.pickle_2 import Pickler
         class PersPickler(Pickler):
             def persistent_id(subself, obj):
@@ -125,7 +125,7 @@ class PicklerUnpicklerObjectTests(AbstractPicklerUnpicklerObjectTests):
 
 class PickleBigmemPickleTests(BigmemPickleTests):
 
-    def dumps(self, arg, proto=0, fast=0):
+    def dumps(self, arg, proto=2, fast=0):
         from zodbpickle import pickle_2
         # Ignore fast
         return pickle_2.dumps(arg, proto)
@@ -162,7 +162,7 @@ class cPickleTests(AbstractPickleTests,
 
 class cPicklePicklerTests(AbstractPickleTests, cPickleBase):
 
-    def dumps(self, arg, proto=0):
+    def dumps(self, arg, proto=2):
         from zodbpickle import _pickle
         f = self.output()
         try:
@@ -194,7 +194,7 @@ class FileIOCPicklerTests(FileIOMixin, cPicklePicklerTests):
 
 class cPickleListPicklerTests(AbstractPickleTests, cPickleBase):
 
-    def dumps(self, arg, proto=0):
+    def dumps(self, arg, proto=2):
         from zodbpickle import _pickle
         p = _pickle.Pickler(proto)
         p.dump(arg)
@@ -221,7 +221,7 @@ class FileIOCPicklerListTests(FileIOMixin, cPickleListPicklerTests):
 
 class cPickleFastPicklerTests(AbstractPickleTests, cPickleBase):
 
-    def dumps(self, arg, proto=0):
+    def dumps(self, arg, proto=2):
         from zodbpickle import _pickle
         f = self.output()
         try:
@@ -302,7 +302,7 @@ class cPicklePicklerUnpicklerObjectTests(AbstractPicklerUnpicklerObjectTests):
 
 class cPickleBigmemPickleTests(BigmemPickleTests):
 
-    def dumps(self, arg, proto=0, fast=0):
+    def dumps(self, arg, proto=2, fast=0):
         from zodbpickle import _pickle
         # Ignore fast
         return _pickle.dumps(arg, proto)

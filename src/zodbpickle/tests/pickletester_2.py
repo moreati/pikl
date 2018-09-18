@@ -44,8 +44,9 @@ from zodbpickle import pickletools_2 as pickletools
 # Tests that try a number of pickle protocols should have a
 #     for proto in protocols:
 # kind of outer loop.
+assert pickle.LOWEST_PROTOCOL == cPickle.LOWEST_PROTOCOL == 2
 assert pickle.HIGHEST_PROTOCOL == cPickle.HIGHEST_PROTOCOL == 3
-protocols = range(pickle.HIGHEST_PROTOCOL + 1)
+protocols = range(pickle.LOWEST_PROTOCOL, pickle.HIGHEST_PROTOCOL + 1)
 
 # Copy of test.test_support.run_with_locale. This is needed to support Python
 # 2.4, which didn't include it. This is all to support test_xpickle, which
@@ -172,194 +173,10 @@ def create_dynamic_class(name, bases):
     result.reduce_args = (name, bases)
     return result
 
-# DATA0 .. DATA2 are the pickles we expect under the various protocols, for
+copy_reg.add_extension(__name__, "create_dynamic_class", extension_codes.next())
+
+# DATA<n> are the pickles we expect under the various protocols, for
 # the object returned by create_data().
-
-# break into multiple strings to avoid confusing font-lock-mode
-DATA0 = """(lp1
-I0
-aL1L
-aF2
-ac__builtin__
-complex
-p2
-""" + \
-"""(F3
-F0
-tRp3
-aI1
-aI-1
-aI255
-aI-255
-aI-256
-aI65535
-aI-65535
-aI-65536
-aI2147483647
-aI-2147483647
-aI-2147483648
-a""" + \
-"""(S'abc'
-p4
-g4
-""" + \
-"""(i__main__
-C
-p5
-""" + \
-"""(dp6
-S'foo'
-p7
-I1
-sS'bar'
-p8
-I2
-sbg5
-tp9
-ag9
-aI5
-a.
-"""
-
-# Disassembly of DATA0.
-DATA0_DIS = """\
-    0: (    MARK
-    1: l        LIST       (MARK at 0)
-    2: p    PUT        1
-    5: I    INT        0
-    8: a    APPEND
-    9: L    LONG       1L
-   13: a    APPEND
-   14: F    FLOAT      2.0
-   17: a    APPEND
-   18: c    GLOBAL     '__builtin__ complex'
-   39: p    PUT        2
-   42: (    MARK
-   43: F        FLOAT      3.0
-   46: F        FLOAT      0.0
-   49: t        TUPLE      (MARK at 42)
-   50: R    REDUCE
-   51: p    PUT        3
-   54: a    APPEND
-   55: I    INT        1
-   58: a    APPEND
-   59: I    INT        -1
-   63: a    APPEND
-   64: I    INT        255
-   69: a    APPEND
-   70: I    INT        -255
-   76: a    APPEND
-   77: I    INT        -256
-   83: a    APPEND
-   84: I    INT        65535
-   91: a    APPEND
-   92: I    INT        -65535
-  100: a    APPEND
-  101: I    INT        -65536
-  109: a    APPEND
-  110: I    INT        2147483647
-  122: a    APPEND
-  123: I    INT        -2147483647
-  136: a    APPEND
-  137: I    INT        -2147483648
-  150: a    APPEND
-  151: (    MARK
-  152: S        STRING     'abc'
-  159: p        PUT        4
-  162: g        GET        4
-  165: (        MARK
-  166: i            INST       '__main__ C' (MARK at 165)
-  178: p        PUT        5
-  181: (        MARK
-  182: d            DICT       (MARK at 181)
-  183: p        PUT        6
-  186: S        STRING     'foo'
-  193: p        PUT        7
-  196: I        INT        1
-  199: s        SETITEM
-  200: S        STRING     'bar'
-  207: p        PUT        8
-  210: I        INT        2
-  213: s        SETITEM
-  214: b        BUILD
-  215: g        GET        5
-  218: t        TUPLE      (MARK at 151)
-  219: p    PUT        9
-  222: a    APPEND
-  223: g    GET        9
-  226: a    APPEND
-  227: I    INT        5
-  230: a    APPEND
-  231: .    STOP
-highest protocol among opcodes = 0
-"""
-
-DATA1 = (']q\x01(K\x00L1L\nG@\x00\x00\x00\x00\x00\x00\x00'
-         'c__builtin__\ncomplex\nq\x02(G@\x08\x00\x00\x00\x00\x00'
-         '\x00G\x00\x00\x00\x00\x00\x00\x00\x00tRq\x03K\x01J\xff\xff'
-         '\xff\xffK\xffJ\x01\xff\xff\xffJ\x00\xff\xff\xffM\xff\xff'
-         'J\x01\x00\xff\xffJ\x00\x00\xff\xffJ\xff\xff\xff\x7fJ\x01\x00'
-         '\x00\x80J\x00\x00\x00\x80(U\x03abcq\x04h\x04(c__main__\n'
-         'C\nq\x05oq\x06}q\x07(U\x03fooq\x08K\x01U\x03barq\tK\x02ubh'
-         '\x06tq\nh\nK\x05e.'
-        )
-
-# Disassembly of DATA1.
-DATA1_DIS = """\
-    0: ]    EMPTY_LIST
-    1: q    BINPUT     1
-    3: (    MARK
-    4: K        BININT1    0
-    6: L        LONG       1L
-   10: G        BINFLOAT   2.0
-   19: c        GLOBAL     '__builtin__ complex'
-   40: q        BINPUT     2
-   42: (        MARK
-   43: G            BINFLOAT   3.0
-   52: G            BINFLOAT   0.0
-   61: t            TUPLE      (MARK at 42)
-   62: R        REDUCE
-   63: q        BINPUT     3
-   65: K        BININT1    1
-   67: J        BININT     -1
-   72: K        BININT1    255
-   74: J        BININT     -255
-   79: J        BININT     -256
-   84: M        BININT2    65535
-   87: J        BININT     -65535
-   92: J        BININT     -65536
-   97: J        BININT     2147483647
-  102: J        BININT     -2147483647
-  107: J        BININT     -2147483648
-  112: (        MARK
-  113: U            SHORT_BINSTRING 'abc'
-  118: q            BINPUT     4
-  120: h            BINGET     4
-  122: (            MARK
-  123: c                GLOBAL     '__main__ C'
-  135: q                BINPUT     5
-  137: o                OBJ        (MARK at 122)
-  138: q            BINPUT     6
-  140: }            EMPTY_DICT
-  141: q            BINPUT     7
-  143: (            MARK
-  144: U                SHORT_BINSTRING 'foo'
-  149: q                BINPUT     8
-  151: K                BININT1    1
-  153: U                SHORT_BINSTRING 'bar'
-  158: q                BINPUT     9
-  160: K                BININT1    2
-  162: u                SETITEMS   (MARK at 143)
-  163: b            BUILD
-  164: h            BINGET     6
-  166: t            TUPLE      (MARK at 112)
-  167: q        BINPUT     10
-  169: h        BINGET     10
-  171: K        BININT1    5
-  173: e        APPENDS    (MARK at 3)
-  174: .    STOP
-highest protocol among opcodes = 1
-"""
 
 DATA2 = ('\x80\x02]q\x01(K\x00\x8a\x01\x01G@\x00\x00\x00\x00\x00\x00\x00'
          'c__builtin__\ncomplex\nq\x02G@\x08\x00\x00\x00\x00\x00\x00G\x00'
@@ -483,24 +300,8 @@ class AbstractPickleTests(unittest.TestCase):
 
     def test_load_from_canned_string(self):
         expected = self._testdata
-        for canned in DATA0, DATA1, DATA2:
+        for canned in [DATA2]:
             got = self.loads(canned)
-            self.assertEqual(expected, got)
-
-    # There are gratuitous differences between pickles produced by
-    # pickle and cPickle, largely because cPickle starts PUT indices at
-    # 1 and pickle starts them at 0.  See XXX comment in cPickle's put2() --
-    # there's a comment with an exclamation point there whose meaning
-    # is a mystery.  cPickle also suppresses PUT for objects with a refcount
-    # of 1.
-    def dont_test_disassembly(self):
-        from pickletools import dis
-
-        for proto, expected in (0, DATA0_DIS), (1, DATA1_DIS):
-            s = self.dumps(self._testdata, proto)
-            filelike = cStringIO.StringIO()
-            dis(s, out=filelike)
-            got = filelike.getvalue()
             self.assertEqual(expected, got)
 
     def test_recursive_list(self):
@@ -556,23 +357,6 @@ class AbstractPickleTests(unittest.TestCase):
 
     def test_garyp(self):
         self.assertRaises(self.error, self.loads, 'garyp')
-
-    def test_insecure_strings(self):
-        insecure = ["abc", "2 + 2", # not quoted
-                    #"'abc' + 'def'", # not a single quoted string
-                    "'abc", # quote is not closed
-                    "'abc\"", # open quote and close quote don't match
-                    "'abc'   ?", # junk after close quote
-                    "'\\'", # trailing backslash
-                    "'",    # issue #17710
-                    "' ",   # issue #17710
-                    # some tests of the quoting rules
-                    #"'abc\"\''",
-                    #"'\\\\a\'\'\'\\\'\\\\\''",
-                    ]
-        for s in insecure:
-            buf = "S" + s + "\012p0\012."
-            self.assertRaises(ValueError, self.loads, buf)
 
     if have_unicode:
         def test_unicode(self):
@@ -644,7 +428,7 @@ class AbstractPickleTests(unittest.TestCase):
     @run_with_locale('LC_ALL', 'de_DE', 'fr_FR')
     def test_float_format(self):
         # make sure that floats are formatted locale independent
-        self.assertEqual(self.dumps(1.2)[0:3], 'F1.')
+        self.assertEqual(self.dumps(1.2)[2:], 'G?\xf3333333.')
 
     def test_reduce(self):
         pass
@@ -842,7 +626,7 @@ class AbstractPickleTests(unittest.TestCase):
 
     # Register a type with copy_reg, with extension code extcode.  Pickle
     # an object of that type.  Check that the resulting pickle uses opcode
-    # (EXT[124]) under proto 2, and not in proto 1.
+    # (EXT[124]) under proto 2.
 
     def produce_global_ext(self, extcode, opcode):
         e = ExtensionSaver(extcode)
@@ -851,16 +635,6 @@ class AbstractPickleTests(unittest.TestCase):
             x = MyList([1, 2, 3])
             x.foo = 42
             x.bar = "hello"
-
-            # Dump using protocol 1 for comparison.
-            s1 = self.dumps(x, 1)
-            self.assertIn(__name__, s1)
-            self.assertIn("MyList", s1)
-            self.assertEqual(opcode_in_pickle(opcode, s1), False)
-
-            y = self.loads(s1)
-            self.assertEqual(list(x), list(y))
-            self.assertEqual(x.__dict__, y.__dict__)
 
             # Dump using protocol 2 for test.
             s2 = self.dumps(x, 2)
@@ -1251,7 +1025,7 @@ class AbstractPersistentPicklerTests(unittest.TestCase):
         self.id_count = 0
         self.load_count = 0
         L = range(10)
-        self.assertEqual(self.loads(self.dumps(L, 1)), L)
+        self.assertEqual(self.loads(self.dumps(L, 2)), L)
         self.assertEqual(self.id_count, 5)
         self.assertEqual(self.load_count, 5)
 
