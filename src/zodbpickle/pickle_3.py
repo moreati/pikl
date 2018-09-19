@@ -59,6 +59,15 @@ HIGHEST_PROTOCOL = 3
 # there are too many issues with that.
 DEFAULT_PROTOCOL = 3
 
+# The number of get operations (BINGET, LONG_BINGET, etc) that are allowed
+# while loading a pickle.
+# The limit is intended to protect against exponential expansion attacks (aka
+# billion laughs, or bomb attacks). When the limit is exceeded the Unpickler
+# stops, and raises RegisterGetsExceeded.
+# A value of 0 disables the protection.
+DEFAULT_REGISTER_GETS_MAX = 40
+#DEFAULT_REGISTER_BYTES_MAX = 8 * 2**20
+
 # Why use struct.pack() for pickling but marshal.loads() for
 # unpickling?  struct.pack() is 40% faster than marshal.dumps(), but
 # marshal.loads() is twice as fast as struct.unpack()!
@@ -86,6 +95,7 @@ class UnpicklingError(PickleError):
     """
     pass
 
+class 
 # An instance of _Stop is raised by Unpickler.load_stop() in response to
 # the STOP opcode, passing the object that is the result of unpickling.
 class _Stop(Exception):
