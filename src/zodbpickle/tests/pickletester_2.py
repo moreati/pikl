@@ -47,6 +47,7 @@ from zodbpickle import pickletools_2 as pickletools
 assert pickle.LOWEST_PROTOCOL == cPickle.LOWEST_PROTOCOL == 2
 assert pickle.HIGHEST_PROTOCOL == cPickle.HIGHEST_PROTOCOL == 3
 protocols = range(pickle.LOWEST_PROTOCOL, pickle.HIGHEST_PROTOCOL + 1)
+unsupported_protocols = range(0, pickle.LOWEST_PROTOCOL)
 
 # Copy of test.test_support.run_with_locale. This is needed to support Python
 # 2.4, which didn't include it. This is all to support test_xpickle, which
@@ -402,6 +403,17 @@ class AbstractPickleTests(unittest.TestCase):
             self.assertEqual(x[0].attr.keys(), [1])
             self.assertTrue(x[0].attr[1] is x)
 
+    def test_get(self):
+        self.assertRaises(self.error, self.loads, '\x80\x02h\x00q\x00')
+
+        self.assertEqual(self.loads('\x80\x02((Kdtq\x00h\x00l.))'),
+                         [(100,), (100,)])
+        # LONG_BINPUT and LONG_BINGET would normally only be used by the
+        # pickle module if billions of objects had been memoized.
+        self.assertEqual(self.loads('\x80\x02((Kdtr\x00\x00\x00\x00j\x00\x00\x00\x00l.))'),
+                         [(100,), (100,)])
+
+
     if have_unicode:
         def test_unicode(self):
             endcases = [u'', u'<\\u>', u'<\\\u1234>', u'<\n>',
@@ -708,6 +720,14 @@ class AbstractPickleTests(unittest.TestCase):
         self.produce_global_ext(0x7fffffff, pickle.EXT4)  # largest EXT4 code
         self.produce_global_ext(0x12abcdef, pickle.EXT4)  # check endianness
 
+    def test_negative_extension(self):
+        if self.module is pickle:
+            self.skipTest("Under Python 2.x the pure python module doesn't "
+                          "check for negative extension codes")
+        self.assertRaises(self.module.UnpicklingError,
+                          self.loads,
+                          '\x80\x02\x84\xff\xff\xff\xff.')
+
     def test_list_chunking(self):
         n = 10  # too small to chunk
         x = range(n)
@@ -872,6 +892,9 @@ class AbstractPickleTests(unittest.TestCase):
             for x_key, y_key in zip(x_keys, y_keys):
                 self.assertIs(x_key, y_key)
 
+    def test_dump_unsupported_protocols(self):
+        for proto in unsupported_protocols:
+            self.assertRaises(ValueError, self.dumps, 42, proto)
 
     def test_load_unsupported_opcodes(self):
         unsupported_opcodes = [
@@ -888,6 +911,18 @@ class AbstractPickleTests(unittest.TestCase):
         ]
         for opcode in unsupported_opcodes:
             self.assertRaises(self.module.UnpicklingError, self.loads, opcode)
+
+    def test_load_unregistered_extension(self):
+        # >>> copy_reg.add_extension('__builtin__', 'set', 123456)
+        # >>> pickle.dumps(set(), 2)
+        pickled = '\x80\x02\x84@\xe2\x01\x00]q\x00\x85q\x01Rq\x02.'
+        self.assertRaises(ValueError, self.loads, pickled)
+
+    def test_load_unregistered_global(self):
+        self.assertRaises(self.module.UnpicklingError,
+                          self.loads,
+                          '\x80\x02cos\nsystem\n(U\x10echo hello worldtR.')
+
 if sys.version_info < (2, 7):
 
     def assertIs(self, expr1, expr2, msg=None):
@@ -1356,6 +1391,11 @@ class AbstractPicklerUnpicklerObjectTests(unittest.TestCase):
         unpickler = self.unpickler_class(f)
         noload = unpickler.noload()
         self.assertEqual(noload, o)
+
+    def test_noload_unregistered_global(self):
+        f = io.BytesIO('\x80\x02cos\nsystem\n(U\x10echo hello worldtR.')
+        unpickler = self.unpickler_class(f)
+        self.assertRaises(self.module.UnpicklingError, unpickler.noload)
 
 
 class BigmemPickleTests(unittest.TestCase):

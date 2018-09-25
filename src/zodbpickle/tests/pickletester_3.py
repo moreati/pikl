@@ -38,6 +38,7 @@ from . import _is_pypy
 #     for proto in protocols:
 # kind of outer loop.
 protocols = range(pickle.LOWEST_PROTOCOL, pickle.HIGHEST_PROTOCOL + 1)
+unsupported_protocols = range(0, pickle.LOWEST_PROTOCOL)
 
 ascii_char_size = 1
 
@@ -428,7 +429,12 @@ class AbstractPickleTests(unittest.TestCase):
 
     def test_get(self):
         self.assertRaises(KeyError, self.loads, b'\x80\x02h\x00q\x00')
+
         self.assertEqual(self.loads(b'\x80\x02((Kdtq\x00h\x00l.))'),
+                         [(100,), (100,)])
+        # LONG_BINPUT and LONG_BINGET would normally only be used by the
+        # pickle module if billions of objects had been memoized.
+        self.assertEqual(self.loads(b'\x80\x02((Kdtr\x00\x00\x00\x00j\x00\x00\x00\x00l.))'),
                          [(100,), (100,)])
 
     def test_unicode(self):
@@ -765,6 +771,11 @@ class AbstractPickleTests(unittest.TestCase):
         self.produce_global_ext(0x7fffffff, pickle.EXT4)  # largest EXT4 code
         self.produce_global_ext(0x12abcdef, pickle.EXT4)  # check endianness
 
+    def test_negative_extension(self):
+        self.assertRaises(pickle.UnpicklingError,
+                          self.loads,
+                          b'\x80\x02\x84\xff\xff\xff\xff.')
+
     def test_list_chunking(self):
         n = 10  # too small to chunk
         x = list(range(n))
@@ -900,7 +911,7 @@ class AbstractPickleTests(unittest.TestCase):
     def test_many_puts_and_gets(self):
         # Test that internal data structures correctly deal with lots of
         # puts/gets.
-        keys = ("aaa" + str(i) for i in range(100))
+        keys = ("aaa" + str(i) for i in range(300))
         large_dict = dict((k, [4, 5, 6]) for k in keys)
         obj = [dict(large_dict), dict(large_dict), dict(large_dict)]
 
@@ -1035,6 +1046,9 @@ class AbstractPickleTests(unittest.TestCase):
             else:
                 self._check_pickling_with_opcode(obj, pickle.SETITEMS, proto)
 
+    def test_unsupported_protocols(self):
+        for proto in unsupported_protocols:
+            self.assertRaises(ValueError, self.dumps, 42, proto)
 
     def test_unsupported_opcodes(self):
         unsupported_opcodes = [
@@ -1051,6 +1065,18 @@ class AbstractPickleTests(unittest.TestCase):
         ]
         for opcode in unsupported_opcodes:
             self.assertRaises(pickle.UnpicklingError, self.loads, opcode)
+
+    def test_load_unregistered_extension(self):
+        # >>> copy_reg.add_extension('__builtin__', 'set', 123456)
+        # >>> pickle.dumps(set(), 2)
+        pickled = b'\x80\x02\x84@\xe2\x01\x00]q\x00\x85q\x01Rq\x02.'
+        self.assertRaises(ValueError, self.loads, pickled)
+
+    def test_load_unregistered_global(self):
+        self.assertRaises(pickle.UnpicklingError,
+                          self.loads,
+                          b'\x80\x02cos\nsystem\n(U\x10echo hello worldtR.')
+
 
 class AbstractBytestrTests(unittest.TestCase):
     def unpickleEqual(self, data, unpickled):
@@ -1679,6 +1705,11 @@ class AbstractPicklerUnpicklerObjectTests(unittest.TestCase):
         unpickler = self.unpickler_class(f)
         noload = unpickler.noload()
         self.assertEqual(noload, o)
+
+    def test_noload_unregistered_global(self):
+        f = io.BytesIO(b'\x80\x02cos\nsystem\n(U\x10echo hello worldtR.')
+        unpickler = self.unpickler_class(f)
+        self.assertRaises(pickle.UnpicklingError, unpickler.noload)
 
 
 # Tests for dispatch_table attribute
