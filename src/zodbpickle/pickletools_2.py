@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 '''"Executable documentation" for the pickle module.
 
 Extensive comments about the pickle protocols and pickle-machine opcodes
@@ -2063,7 +2065,7 @@ class _Example:
         self.value = value
 
 _dis_test = r"""
->>> from zodbpickle import pickle_2 as pickle
+>>> import pickle
 >>> x = [1, 2, (3, 4), {'abc': u"def"}]
 >>> pkl = pickle.dumps(x, 0)
 >>> dis(pkl)
@@ -2268,7 +2270,7 @@ highest protocol among opcodes = 2
 """
 
 _memo_test = r"""
->>> from zodbpickle import pickle_2 as pickle
+>>> import pickle
 >>> from StringIO import StringIO
 >>> f = StringIO()
 >>> p = pickle.Pickler(f, 2)
@@ -2301,7 +2303,7 @@ __test__ = {'disassembler_test': _dis_test,
 
 def _test():
     import doctest
-    return doctest.testmod()
+    return doctest.testmod(extraglobs={'absolute_import': absolute_import})
 
 if __name__ == "__main__":
     _test()

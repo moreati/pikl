@@ -27,7 +27,10 @@ def test_suite():
         from .test_pickle_3 import test_suite
     else:
         from .test_pickle_2 import test_suite
+    from . import test_pickletools
+
     return unittest.TestSuite((
         test_suite(),
+        test_pickletools.test_suite(),
         unittest.makeSuite(TestImportability),
     ))

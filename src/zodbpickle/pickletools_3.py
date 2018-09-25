@@ -2149,7 +2149,15 @@ class _Example:
 _dis_test = r"""
 >>> import pickle
 >>> x = [1, 2, (3, 4), {b'abc': "def"}]
->>> pkl0 = pickle.dumps(x, 0)
+
+At protocol 0 an integer can be pickled with either an INT or a LONG opcode.
+Python 3.0 - 3.6 use a LONG opcode, regardless of the value.
+Python 3.7 uses an INT opcode for 32-bit integers, & a LONG opcode otherwise.
+To avoid this quirk we are using a prebaked pickle, generated on Python 3.6.
+
+>>> pkl0 = (b'(lp0\nL1L\naL2L\na(L3L\nL4L\ntp1\na(dp2\n'
+...         b'c_codecs\nencode\np3\n(Vabc\np4\nVlatin1\n'
+...         b'p5\ntp6\nRp7\nVdef\np8\nsa.')
 >>> dis(pkl0)
     0: (    MARK
     1: l        LIST       (MARK at 0)
@@ -2230,7 +2238,10 @@ highest protocol among opcodes = 0
 
 >>> from pickletools import _Example
 >>> x = [_Example(42)] * 2
->>> dis(pickle.dumps(x, 0))
+>>> x_pkl0 = (b'(lp0\nccopy_reg\n_reconstructor\np1\n'
+...           b'(cpickletools\n_Example\np2\nc__builtin__\nobject\np3\n'
+...           b'Ntp4\nRp5\n(dp6\nVvalue\np7\nL42L\nsbag5\na.')
+>>> dis(x_pkl0)
     0: (    MARK
     1: l        LIST       (MARK at 0)
     2: p    PUT        0
