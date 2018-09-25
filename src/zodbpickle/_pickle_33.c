@@ -4339,14 +4339,9 @@ load_pop_mark(UnpicklerObject *self)
 static int
 load_dup(UnpicklerObject *self)
 {
-    PyObject *last;
-    Py_ssize_t len;
-
-    if ((len = Py_SIZE(self->stack)) <= 0)
-        return stack_underflow();
-    last = self->stack->data[len - 1];
-    PDATA_APPEND(self->stack, last, -1);
-    return 0;
+    PyErr_SetString(UnpicklingError,
+                    "DUP opcode is not supported");
+    return -1;
 }
 
 static int

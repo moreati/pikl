@@ -875,6 +875,7 @@ class AbstractPickleTests(unittest.TestCase):
 
     def test_load_unsupported_opcodes(self):
         unsupported_opcodes = [
+            pickle.DUP,
             pickle.FLOAT,
             pickle.LONG,
             pickle.PERSID,

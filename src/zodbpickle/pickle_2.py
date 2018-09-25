@@ -1173,7 +1173,7 @@ class Unpickler:
     dispatch[POP_MARK] = load_pop_mark
 
     def load_dup(self):
-        self.append(self.stack[-1])
+        raise UnpicklingError("DUP opcode is not supported")
     dispatch[DUP] = load_dup
 
     def load_get(self):
