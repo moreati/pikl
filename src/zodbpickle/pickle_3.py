@@ -1283,7 +1283,7 @@ class _Unpickler:
     nl_dispatch[OBJ[0]] = noload_obj
 
     def noload_inst(self):
-        raise UnpicklingError("INST opcode id not supported")
+        raise UnpicklingError("INST opcode is not supported")
     nl_dispatch[INST[0]] = noload_inst
 
     def noload_newobj(self):
@@ -1293,7 +1293,7 @@ class _Unpickler:
     nl_dispatch[NEWOBJ[0]] = noload_newobj
 
     def noload_global(self):
-        raise UnpicklingError("GLOBAL opcode id not supported")
+        raise UnpicklingError("GLOBAL opcode is not supported")
     nl_dispatch[GLOBAL[0]] = noload_global
 
     def noload_append(self):
