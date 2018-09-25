@@ -910,7 +910,7 @@ class Unpickler:
     dispatch[PROTO] = load_proto
 
     def load_persid(self):
-        UnpicklingError("Only binary pickle protocols are supported")
+        raise UnpicklingError("Only binary pickle protocols are supported")
     dispatch[PERSID] = load_persid
 
     def load_binpersid(self):
@@ -985,7 +985,7 @@ class Unpickler:
     dispatch[LONG4] = load_long4
 
     def load_float(self):
-        self.append(float(self.readline()[:-1]))
+        raise UnpicklingError("Only binary pickle protocols are supported")
     dispatch[FLOAT] = load_float
 
     def load_binfloat(self, unpack=struct.unpack):

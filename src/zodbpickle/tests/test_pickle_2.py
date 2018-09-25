@@ -46,7 +46,17 @@ class FileIOMixin:
         test_support.unlink(test_support.TESTFN)
 
 
-class PickleTests(AbstractPickleTests, AbstractPickleModuleTests):
+class PickleBase(object):
+
+    error = KeyError
+
+    @property
+    def module(self):
+        from zodbpickle import pickle_2
+        return pickle_2
+
+
+class PickleTests(AbstractPickleTests, AbstractPickleModuleTests, PickleBase):
 
     def dumps(self, arg, proto=2, fast=0):
         from zodbpickle.pickle_2 import dumps
@@ -58,17 +68,8 @@ class PickleTests(AbstractPickleTests, AbstractPickleModuleTests):
         # Ignore fast
         return loads(buf)
 
-    @property
-    def module(self):
-        from zodbpickle import pickle_2
-        return pickle_2
 
-    error = KeyError
-
-
-class PicklerTests(AbstractPickleTests):
-
-    error = KeyError
+class PicklerTests(AbstractPickleTests, PickleBase):
 
     def dumps(self, arg, proto=2, fast=0):
         from zodbpickle.pickle_2 import Pickler
@@ -112,7 +113,8 @@ class PersPicklerTests(AbstractPersistentPicklerTests):
         return u.load()
 
 
-class PicklerUnpicklerObjectTests(AbstractPicklerUnpicklerObjectTests):
+class PicklerUnpicklerObjectTests(AbstractPicklerUnpicklerObjectTests,
+                                  PickleBase):
 
     @property
     def pickler_class(self):
@@ -145,6 +147,11 @@ class cPickleBase(object):
         from zodbpickle._pickle import BadPickleGet
         return BadPickleGet
 
+    @property
+    def module(self):
+        from zodbpickle import _pickle
+        return _pickle
+
 
 class cPickleTests(AbstractPickleTests,
                    AbstractPickleModuleTests,
@@ -155,11 +162,6 @@ class cPickleTests(AbstractPickleTests,
         from zodbpickle._pickle import loads
         self.dumps = dumps
         self.loads = loads
-
-    @property
-    def module(self):
-        from zodbpickle import _pickle
-        return _pickle
 
 
 class cPicklePicklerTests(AbstractPickleTests, cPickleBase):
@@ -290,7 +292,8 @@ class FileIOCPicklerFastTests(FileIOMixin, cPickleFastPicklerTests):
     pass
 
 
-class cPicklePicklerUnpicklerObjectTests(AbstractPicklerUnpicklerObjectTests):
+class cPicklePicklerUnpicklerObjectTests(AbstractPicklerUnpicklerObjectTests,
+                                         cPickleBase):
 
     @property
     def pickler_class(self):

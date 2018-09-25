@@ -872,6 +872,21 @@ class AbstractPickleTests(unittest.TestCase):
             for x_key, y_key in zip(x_keys, y_keys):
                 self.assertIs(x_key, y_key)
 
+
+    def test_load_unsupported_opcodes(self):
+        unsupported_opcodes = [
+            pickle.FLOAT,
+            pickle.LONG,
+            pickle.PERSID,
+            pickle.STRING,
+            pickle.UNICODE,
+            pickle.GET,
+            pickle.PUT,
+            pickle.FALSE,
+            pickle.TRUE,
+        ]
+        for opcode in unsupported_opcodes:
+            self.assertRaises(self.module.UnpicklingError, self.loads, opcode)
 if sys.version_info < (2, 7):
 
     def assertIs(self, expr1, expr2, msg=None):

@@ -1036,6 +1036,21 @@ class AbstractPickleTests(unittest.TestCase):
                 self._check_pickling_with_opcode(obj, pickle.SETITEMS, proto)
 
 
+    def test_unsupported_opcodes(self):
+        unsupported_opcodes = [
+            pickle.FLOAT,
+            pickle.LONG,
+            pickle.PERSID,
+            pickle.STRING,
+            pickle.UNICODE,
+            pickle.GET,
+            pickle.PUT,
+            pickle.FALSE,
+            pickle.TRUE,
+        ]
+        for opcode in unsupported_opcodes:
+            self.assertRaises(pickle.UnpicklingError, self.loads, opcode)
+
 class AbstractBytestrTests(unittest.TestCase):
     def unpickleEqual(self, data, unpickled):
         loaded = self.loads(data, encoding="bytes")
