@@ -1439,7 +1439,7 @@ def _loads(s, *, fix_imports=True, encoding="ASCII", errors="strict"):
 
 # Use the faster _pickle if possible
 try:
-    from zodbpickle._pickle import *
+    from pikl._pickle import *
 except ImportError:
     Pickler, Unpickler = _Pickler, _Unpickler
     dump, dumps, load, loads = _dump, _dumps, _load, _loads

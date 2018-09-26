@@ -3,22 +3,22 @@ import unittest
 class TestImportability(unittest.TestCase):
 
     def test_Pickler(self):
-        from zodbpickle.pickle import Pickler
+        from pikl.pickle import Pickler
 
     def test_Unpickler(self):
-        from zodbpickle.pickle import Unpickler
+        from pikl.pickle import Unpickler
 
     def test_load(self):
-        from zodbpickle.pickle import load
+        from pikl.pickle import load
 
     def test_loads(self):
-        from zodbpickle.pickle import load
+        from pikl.pickle import load
 
     def test_dump(self):
-        from zodbpickle.pickle import dumps
+        from pikl.pickle import dumps
 
     def test_dumps(self):
-        from zodbpickle.pickle import dumps
+        from pikl.pickle import dumps
 
 
 def test_suite():

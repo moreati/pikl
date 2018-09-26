@@ -1,6 +1,6 @@
 [run]
 branch = True
-source = zodbpickle
+source = pikl
 
 [report]
 precision = 2

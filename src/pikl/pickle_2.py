@@ -164,7 +164,7 @@ LONG4           = '\x8b'  # push really big long
 BINBYTES        = 'B'
 SHORT_BINBYTES  = 'C'
 
-from zodbpickle import binary as BinaryType
+from pikl import binary as BinaryType
 
 _tuplesize2code = [EMPTY_TUPLE, TUPLE1, TUPLE2, TUPLE3]
 

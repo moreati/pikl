@@ -31,15 +31,15 @@ except ImportError:
 from . import _is_jython
 from . import _is_pypy
 from . import _is_pure
-from zodbpickle import pickle_2 as pickle
+from pikl import pickle_2 as pickle
 try:
-    from zodbpickle import _pickle as cPickle
+    from pikl import _pickle as cPickle
     has_c_implementation = not _is_pypy and not _is_pure
 except ImportError:
     cPickle = pickle
     has_c_implementation = False
 
-from zodbpickle import pickletools_2 as pickletools
+from pikl import pickletools_2 as pickletools
 
 # Tests that try a number of pickle protocols should have a
 #     for proto in protocols:
@@ -145,7 +145,7 @@ STDLIB_EXTENSIONS = [
     ("__builtin__", "set"),
     ("__builtin__", "str"),
     ("__builtin__", "unicode"),
-    ("_codecs", "encode"),  # Used by zodbpickle.binary()
+    ("_codecs", "encode"),  # Used by pikl.binary()
     #("array", "array"),
     # collections?
     ("copy_reg", "_reconstructor"),  # Used by object.__reduce__()
@@ -565,7 +565,7 @@ class AbstractPickleTests(unittest.TestCase):
             self.assertEqual(opcode_in_pickle(pickle.LONG4, s), proto >= 2)
 
     def test_shortbinbytes(self):
-        from zodbpickle import binary
+        from pikl import binary
         x = binary(b'\x00ABC\x80')
         for proto in protocols:
             s = self.dumps(x, proto)
@@ -575,7 +575,7 @@ class AbstractPickleTests(unittest.TestCase):
                              proto >= 3, str(self.__class__))
 
     def test_binbytes(self):
-        from zodbpickle import binary
+        from pikl import binary
         x = binary(b'\x00ABC\x80' * 100)
         for proto in protocols:
             s = self.dumps(x, proto)

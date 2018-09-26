@@ -4,8 +4,8 @@ import sys
 import copyreg
 import weakref
 from http.cookies import SimpleCookie
-from zodbpickle import pickle_3 as pickle
-from zodbpickle import pickletools_3 as pickletools
+from pikl import pickle_3 as pickle
+from pikl import pickletools_3 as pickletools
 
 from test.support import (
     TestFailed, TESTFN, run_with_locale,
@@ -31,7 +31,7 @@ except ImportError:
 
 _PY343 = sys.version_info[:3] >= (3, 4, 3)
 
-from zodbpickle.pickle_3 import bytes_types
+from pikl.pickle_3 import bytes_types
 from . import _is_pypy
 
 # Tests that try a number of pickle protocols should have a
@@ -117,7 +117,7 @@ STDLIB_EXTENSIONS = [
     ("builtins", "set"),
     ("builtins", "str"),
     ("builtins", "unicode"),
-    ("_codecs", "encode"),  # Used by zodbpickle.binary()
+    ("_codecs", "encode"),  # Used by pikl.binary()
     #("array", "array"),
     # collections?
     ("copyreg", "_reconstructor"),  # Used by object.__reduce__()

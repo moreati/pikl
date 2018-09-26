@@ -52,19 +52,19 @@ class PickleBase(object):
 
     @property
     def module(self):
-        from zodbpickle import pickle_2
+        from pikl import pickle_2
         return pickle_2
 
 
 class PickleTests(AbstractPickleTests, AbstractPickleModuleTests, PickleBase):
 
     def dumps(self, arg, proto=2, fast=0):
-        from zodbpickle.pickle_2 import dumps
+        from pikl.pickle_2 import dumps
         # Ignore fast
         return dumps(arg, proto)
 
     def loads(self, buf):
-        from zodbpickle.pickle_2 import loads
+        from pikl.pickle_2 import loads
         # Ignore fast
         return loads(buf)
 
@@ -72,7 +72,7 @@ class PickleTests(AbstractPickleTests, AbstractPickleModuleTests, PickleBase):
 class PicklerTests(AbstractPickleTests, PickleBase):
 
     def dumps(self, arg, proto=2, fast=0):
-        from zodbpickle.pickle_2 import Pickler
+        from pikl.pickle_2 import Pickler
         f = cStringIO.StringIO()
         p = Pickler(f, proto)
         if fast:
@@ -82,7 +82,7 @@ class PicklerTests(AbstractPickleTests, PickleBase):
         return f.read()
 
     def loads(self, buf):
-        from zodbpickle.pickle_2 import Unpickler
+        from pikl.pickle_2 import Unpickler
         f = cStringIO.StringIO(buf)
         u = Unpickler(f)
         return u.load()
@@ -91,7 +91,7 @@ class PicklerTests(AbstractPickleTests, PickleBase):
 class PersPicklerTests(AbstractPersistentPicklerTests):
 
     def dumps(self, arg, proto=2, fast=0):
-        from zodbpickle.pickle_2 import Pickler
+        from pikl.pickle_2 import Pickler
         class PersPickler(Pickler):
             def persistent_id(subself, obj):
                 return self.persistent_id(obj)
@@ -104,7 +104,7 @@ class PersPicklerTests(AbstractPersistentPicklerTests):
         return f.read()
 
     def loads(self, buf):
-        from zodbpickle.pickle_2 import Unpickler
+        from pikl.pickle_2 import Unpickler
         class PersUnpickler(Unpickler):
             def persistent_load(subself, obj):
                 return self.persistent_load(obj)
@@ -118,24 +118,24 @@ class PicklerUnpicklerObjectTests(AbstractPicklerUnpicklerObjectTests,
 
     @property
     def pickler_class(self):
-        from zodbpickle.pickle_2 import Pickler
+        from pikl.pickle_2 import Pickler
         return  Pickler
 
     @property
     def unpickler_class(self):
-        from zodbpickle.pickle_2 import Unpickler
+        from pikl.pickle_2 import Unpickler
         return  Unpickler
 
 
 class PickleBigmemPickleTests(BigmemPickleTests):
 
     def dumps(self, arg, proto=2, fast=0):
-        from zodbpickle import pickle_2
+        from pikl import pickle_2
         # Ignore fast
         return pickle_2.dumps(arg, proto)
 
     def loads(self, buf):
-        from zodbpickle import pickle_2
+        from pikl import pickle_2
         # Ignore fast
         return pickle_2.loads(buf)
 
@@ -144,12 +144,12 @@ class cPickleBase(object):
 
     @property
     def error(self):
-        from zodbpickle._pickle import BadPickleGet
+        from pikl._pickle import BadPickleGet
         return BadPickleGet
 
     @property
     def module(self):
-        from zodbpickle import _pickle
+        from pikl import _pickle
         return _pickle
 
 
@@ -158,8 +158,8 @@ class cPickleTests(AbstractPickleTests,
                    cPickleBase,
                   ):
     def setUp(self):
-        from zodbpickle._pickle import dumps
-        from zodbpickle._pickle import loads
+        from pikl._pickle import dumps
+        from pikl._pickle import loads
         self.dumps = dumps
         self.loads = loads
 
@@ -167,7 +167,7 @@ class cPickleTests(AbstractPickleTests,
 class cPicklePicklerTests(AbstractPickleTests, cPickleBase):
 
     def dumps(self, arg, proto=2):
-        from zodbpickle import _pickle
+        from pikl import _pickle
         f = self.output()
         try:
             p = _pickle.Pickler(f, proto)
@@ -178,7 +178,7 @@ class cPicklePicklerTests(AbstractPickleTests, cPickleBase):
             self.close(f)
 
     def loads(self, buf):
-        from zodbpickle import _pickle
+        from pikl import _pickle
         f = self.input(buf)
         try:
             p = _pickle.Unpickler(f)
@@ -199,13 +199,13 @@ class FileIOCPicklerTests(FileIOMixin, cPicklePicklerTests):
 class cPickleListPicklerTests(AbstractPickleTests, cPickleBase):
 
     def dumps(self, arg, proto=2):
-        from zodbpickle import _pickle
+        from pikl import _pickle
         p = _pickle.Pickler(proto)
         p.dump(arg)
         return p.getvalue()
 
     def loads(self, *args):
-        from zodbpickle import _pickle
+        from pikl import _pickle
         f = self.input(args[0])
         try:
             p = _pickle.Unpickler(f)
@@ -226,7 +226,7 @@ class FileIOCPicklerListTests(FileIOMixin, cPickleListPicklerTests):
 class cPickleFastPicklerTests(AbstractPickleTests, cPickleBase):
 
     def dumps(self, arg, proto=2):
-        from zodbpickle import _pickle
+        from pikl import _pickle
         f = self.output()
         try:
             p = _pickle.Pickler(f, proto)
@@ -238,7 +238,7 @@ class cPickleFastPicklerTests(AbstractPickleTests, cPickleBase):
             self.close(f)
 
     def loads(self, *args):
-        from zodbpickle import _pickle
+        from pikl import _pickle
         f = self.input(args[0])
         try:
             p = _pickle.Unpickler(f)
@@ -297,23 +297,23 @@ class cPicklePicklerUnpicklerObjectTests(AbstractPicklerUnpicklerObjectTests,
 
     @property
     def pickler_class(self):
-        from zodbpickle._pickle import Pickler
+        from pikl._pickle import Pickler
         return Pickler
 
     @property
     def unpickler_class(self):
-        from zodbpickle._pickle import Unpickler
+        from pikl._pickle import Unpickler
         return Unpickler
 
 class cPickleBigmemPickleTests(BigmemPickleTests):
 
     def dumps(self, arg, proto=2, fast=0):
-        from zodbpickle import _pickle
+        from pikl import _pickle
         # Ignore fast
         return _pickle.dumps(arg, proto)
 
     def loads(self, buf):
-        from zodbpickle import _pickle
+        from pikl import _pickle
         # Ignore fast
         return _pickle.loads(buf)
 
@@ -329,7 +329,7 @@ class cPickleDeepRecursive(unittest.TestCase):
         # This should raise a RecursionLimit but in some
         # platforms (FreeBSD, win32) sometimes raises KeyError instead,
         # or just silently terminates the interpreter (=crashes).
-        from zodbpickle import _pickle
+        from pikl import _pickle
         nodes = [Node() for i in range(500)]
         for n in nodes:
             n.connections = list(nodes)
@@ -339,7 +339,7 @@ class cPickleDeepRecursive(unittest.TestCase):
     def test_issue3179(self):
         # Safe test, because I broke this case when fixing the
         # behaviour for the previous test.
-        from zodbpickle import _pickle
+        from pikl import _pickle
         res=[]
         for x in range(1,2000):
             res.append(dict(doc=x, similar=[]))

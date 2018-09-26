@@ -1,37 +1,41 @@
-``zodbpickle`` README
-=====================
+``pikl`` README
+===============
 
-.. image:: https://travis-ci.org/zopefoundation/zodbpickle.svg?branch=master
-        :target: https://travis-ci.org/zopefoundation/zodbpickle
+.. image:: https://travis-ci.org/moreati/pikl.svg?branch=master
+        :target: https://travis-ci.org/moreati/pikl
 
-.. image:: https://coveralls.io/repos/github/zopefoundation/zodbpickle/badge.svg
-   :target: https://coveralls.io/github/zopefoundation/zodbpickle
+.. image:: https://coveralls.io/repos/github/moreati/pikl/badge.svg
+   :target: https://coveralls.io/github/moreati/pikl
    :alt: Coverage status
 
-.. image:: https://img.shields.io/pypi/v/zodbpickle.svg
-        :target: https://pypi.python.org/pypi/zodbpickle
+.. image:: https://img.shields.io/pypi/v/pikl.svg
+        :target: https://pypi.python.org/pypi/pikl
         :alt: PyPI
 
-.. image:: https://img.shields.io/pypi/pyversions/zodbpickle.svg
-        :target: https://pypi.python.org/pypi/zodbpickle
+.. image:: https://img.shields.io/pypi/pyversions/pikl.svg
+        :target: https://pypi.python.org/pypi/pikl
         :alt: Python versions
 
-This package presents a uniform pickling interface for ZODB:
+This package is an attempt to create a rehabilitated pickle module:
 
-- Under Python2, this package forks both Python 2.7's ``pickle`` and
-  ``cPickle`` modules, adding support for the ``protocol 3`` opcodes.
-  It also provides a new subclass of ``bytes``, ``zodbpickle.binary``,
-  which Python2 applications can use to pickle binary values such that
-  they will be unpickled as ``bytes`` under Py3k.
+- GLOBAL and INST opcodes have been removed. The copyreg extension registry is
+  left as the only (opt-in) mechanism to dump or load custom classes.
 
-- Under Py3k, this package forks the ``pickle`` module (and the supporting
-  C extension) from both Python 3.2 and Python 3.3.  The fork add support
-  for the ``noload`` operations used by ZODB.
+- Protocol 0 and 1 support has been removed. Only binary pickles are accepted.
+
+- Protocol 3 is the default protocol on both Python 2.x and Python 3.x
+
+``pikl`` is derived from `zodbpickle`_, a uniform pickling interface for ZODB:
+
+.. zodbpickle: https://github.com/zopefoundation/zodbpickle
 
 Caution
 -------
 
-``zodbpickle`` relies on Python's ``pickle`` module.
+``pikl`` is ultimately derived from Python's ``pickle`` module.
+Although efforts have been made to remove identified security vulnerabilities,
+it is almost certain that more vulneravilities remain.
+
 The ``pickle`` module is not intended to be secure against erroneous or
 maliciously constructed data. Never unpickle data received from an
 untrusted or unauthenticated source as arbitrary code might be executed.
@@ -41,125 +45,60 @@ Also see https://docs.python.org/3.6/library/pickle.html
 General Usage
 -------------
 
-To get compatibility between Python 2 and 3 pickling, replace::
+To use ``pikl`` instead of Python's inbuilt ``pickle`` module, replace::
 
     import pickle
 
 by::
 
-    from zodbpickle import pickle
+    import pikl.pickle as pikl
 
 This provides compatibility, but has the effect that you get the fast implementation
 in Python 3, while Python 2 uses the slow version.
 
 To get a more deterministic choice of the implementation, use one of::
 
-    from zodbpickle import fastpickle # always C
-    from zodbpickle import slowpickle # always Python
+    import pikl.fastpickle as pikl # always C
+    import pikl.slowpickle as pikl # always Python
 
-Both modules can co-exist which is helpful for comparison.
-
-But there is a bit more to consider, so please read on!
-
-Loading/Storing Python 2 Strings
---------------------------------
-
-In all their wisdom, the Python developers have decided that Python 2 ``str``
-instances should be loaded as Python 3 ``str`` objects (i.e. unicode
-strings). Patches were proposed in Python `issue 6784`__ but were never
-applied. This code base contains those patches.
-
-.. __: http://bugs.python.org/issue6784
-
-Example 1: Loading Python 2 pickles on Python 3 ::
-
-    $ python2
-    >>> import pickle
-    >>> pickle.dumps('\xff', protocol=0)
-    "S'\\xff'\np0\n."
-    >>> pickle.dumps('\xff', protocol=1)
-    'U\x01\xffq\x00.'
-    >>> pickle.dumps('\xff', protocol=2)
-    '\x80\x02U\x01\xffq\x00.'
+A bytestream produced by ``pickle`` can by loaded by ``pikl`` provided it
+meets certain restrictions (e.g. protocol >= 2, no use of GLOBAL opcode)::
 
     $ python3
-    >>> from zodbpickle import pickle
-    >>> pickle.loads(b"S'\\xff'\np0\n.", encoding='bytes')
-    b'\xff'
-    >>> pickle.loads(b'U\x01\xffq\x00.', encoding='bytes')
-    b'\xff'
-    >>> pickle.loads(b'\x80\x02U\x01\xffq\x00.', encoding='bytes')
-    b'\xff'
-
-Example 2: Loading Python 3 pickles on Python 2 ::
-
-    $ python3
-    >>> from zodbpickle import pickle
-    >>> pickle.dumps(b"\xff", protocol=0)
-    b'c_codecs\nencode\np0\n(V\xff\np1\nVlatin1\np2\ntp3\nRp4\n.'
-    >>> pickle.dumps(b"\xff", protocol=1)
-    b'c_codecs\nencode\nq\x00(X\x02\x00\x00\x00\xc3\xbfq\x01X\x06\x00\x00\x00latin1q\x02tq\x03Rq\x04.'
-    >>> pickle.dumps(b"\xff", protocol=2)
-    b'\x80\x02c_codecs\nencode\nq\x00X\x02\x00\x00\x00\xc3\xbfq\x01X\x06\x00\x00\x00latin1q\x02\x86q\x03Rq\x04.'
-
-    $ python2
     >>> import pickle
-    >>> pickle.loads('c_codecs\nencode\np0\n(V\xff\np1\nVlatin1\np2\ntp3\nRp4\n.')
-    '\xff'
-    >>> pickle.loads('c_codecs\nencode\nq\x00(X\x02\x00\x00\x00\xc3\xbfq\x01X\x06\x00\x00\x00latin1q\x02tq\x03Rq\x04.')
-    '\xff'
-    >>> pickle.loads('\x80\x02c_codecs\nencode\nq\x00X\x02\x00\x00\x00\xc3\xbfq\x01X\x06\x00\x00\x00latin1q\x02\x86q\x03Rq\x04.')
-    '\xff'
+    >>> s = pickle.dumps({'abc': 2})
+    >>> from pikl import pickle as pikl
+    >>> pikl.loads(s)
+    {'abc': 2}
 
-Example 3: everything breaks down ::
+Loading an earlier protocol will raise ``UnpicklingError``::
 
-    $ python2
-    >>> class Foo(object):
-    ...     def __init__(self):
-    ...         self.x = 'hello'
-    ...
-    >>> import pickle
-    >>> pickle.dumps(Foo(), protocol=0)
-    "ccopy_reg\n_reconstructor\np0\n(c__main__\nFoo\np1\nc__builtin__\nobject\np2\nNtp3\nRp4\n(dp5\nS'x'\np6\nS'hello'\np7\nsb."
-    >>> pickle.dumps(Foo(), protocol=1)
-    'ccopy_reg\n_reconstructor\nq\x00(c__main__\nFoo\nq\x01c__builtin__\nobject\nq\x02Ntq\x03Rq\x04}q\x05U\x01xq\x06U\x05helloq\x07sb.'
-    >>> pickle.dumps(Foo(), protocol=2)
-    '\x80\x02c__main__\nFoo\nq\x00)\x81q\x01}q\x02U\x01xq\x03U\x05helloq\x04sb.'
-
-    $ python3
-    >>> from zodbpickle import pickle
-    >>> class Foo(object): pass
-    ...
-    >>> foo = pickle.loads("ccopy_reg\n_reconstructor\np0\n(c__main__\nFoo\np1\nc__builtin__\nobject\np2\nNtp3\nRp4\n(dp5\nS'x'\np6\nS'hello'\np7\nsb.", encoding='bytes')
-    >>> foo.x
+    >>> s = pickle.dumps({'abc': 2}, protocol=0)
+    >>> pikl.loads(s)
     Traceback (most recent call last):
-      File "<stdin>", line 1, in <module>
-    AttributeError: 'Foo' object has no attribute 'x'
+    ...
+    pikl.pickle_3.UnpicklingError: Only binary pickle protocols are supported
 
-wait what? ::
+Loading an unregistered class or callable will raise ``UnpicklingError``::
 
-    >>> foo.__dict__
-    {b'x': b'hello'}
+    >>> s = pickle.dumps(complex(2, 1))
+    >>> pikl.loads(s)
+    Traceback (most recent call last):
+    ...
+    pikl.pickle_3.UnpicklingError: GLOBAL opcode is not supported
 
-oooh.  So we use ``encoding='ASCII'`` (the default) and ``errors='bytes'`` and
-hope it works::
+Extension Registry
+------------------
 
-    >>> foo = pickle.loads("ccopy_reg\n_reconstructor\np0\n(c__main__\nFoo\np1\nc__builtin__\nobject\np2\nNtp3\nRp4\n(dp5\nS'x'\np6\nS'hello'\np7\nsb.", errors='bytes')
-    >>> foo.x
-    'hello'
+To provide an opt-in mechanism for loading classes or callables ``pikl`` uses
+the extension registry in the ``copyreg`` module::
 
-falling back to bytes if necessary ::
+    >>> import copyreg
+    >>> copyreg.add_extension('builtins', 'complex', 240)
+    >>> s = pickle.dumps(complex(2, 1))
+    >>> pikl.loads(s)
+    (2+1j)
 
-    >>> pickle.loads(b'\x80\x02U\x01\xffq\x00.', errors='bytes')
-    b'\xff'
-
-
-Support for ``noload()``
-------------------------
-
-The ZODB uses `cPickle`'s ``noload()`` method to retrieve all persistent
-references from a pickle without loading any objects. This feature was removed
-from Python 3's pickle. Unfortuantely, this unnecessarily fills the pickle
-cache.
-
-This module provides a ``noload()`` method again.
+Both the pickler and unpickler must agree on the same registry codes. A future
+version of pikl will include a mechanism (e.g. defined profiles) to make this
+assist.

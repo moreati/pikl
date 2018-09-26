@@ -119,7 +119,7 @@ static PyObject *PicklingError;
 static PyObject *UnpickleableError;
 static PyObject *UnpicklingError;
 static PyObject *BadPickleGet;
-static PyObject *BinaryType;  /* from zodbpickle import binary */
+static PyObject *BinaryType;  /* from pikl import binary */
 
 /* As the name says, an empty tuple. */
 static PyObject *empty_tuple;
@@ -5848,12 +5848,12 @@ init_pickle(void)
         return;
 
     if (BinaryType == NULL) {
-        PyObject *zodbpickle_module = PyImport_ImportModule("zodbpickle");
-        if (zodbpickle_module == NULL) {
+        PyObject *pikl_module = PyImport_ImportModule("pikl");
+        if (pikl_module == NULL) {
             return;
         }
-        BinaryType = PyObject_GetAttrString(zodbpickle_module, "binary");
-        Py_DECREF(zodbpickle_module);
+        BinaryType = PyObject_GetAttrString(pikl_module, "binary");
+        Py_DECREF(pikl_module);
         if (BinaryType == NULL) {
             return;
         }

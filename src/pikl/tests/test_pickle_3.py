@@ -15,10 +15,10 @@ from .pickletester_3 import AbstractBytesFallbackTests
 
 from . import _is_pypy
 from . import _is_pure
-from zodbpickle import pickle_3 as pickle
+from pikl import pickle_3 as pickle
 
 try:
-    from zodbpickle import _pickle
+    from pikl import _pickle
     has_c_implementation = not _is_pypy and not _is_pure
 except ImportError:
     has_c_implementation = False

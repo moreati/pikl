@@ -5,10 +5,10 @@ import unittest
 
 if sys.version_info[0] >= 3:
     from test import support as test_support
-    from zodbpickle import pickletools_3 as pt
+    from pikl import pickletools_3 as pt
 else:
     from test import test_support
-    from zodbpickle import pickletools_2 as pt
+    from pikl import pickletools_2 as pt
 
 
 class PickleToolsReadTest(unittest.TestCase):

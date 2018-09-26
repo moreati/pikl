@@ -1,7 +1,7 @@
 import sys
 
 '''
-The zodbpickle.pickle module exposes the standard behavior of
+The pikl.pickle module exposes the standard behavior of
 the pickle module.
 This is backward compatible, but has the effect that by default,
 on Python3 you get the fast implementation, while on Python2
@@ -19,7 +19,7 @@ So this is a rare case where 'import *' is exactly the right thing to do.
 '''
 
 if sys.version_info[0] >= 3:
-    import zodbpickle.pickle_3 as p
+    import pikl.pickle_3 as p
     # undo the replacement with fast versions
     p.Pickler, p.Unpickler = p._Pickler, p._Pickler
     p.dump, p.dumps, p.load, p.loads = p._dump, p._dumps, p._load, p._loads
@@ -27,7 +27,7 @@ if sys.version_info[0] >= 3:
     # pick up all names that the module defines
     from .pickle_3 import *
     # do not share the globals with a fast version
-    del sys.modules['zodbpickle.pickle_3']
+    del sys.modules['pikl.pickle_3']
 else:
     # pick up all names that the module defines
     from .pickle_2 import *

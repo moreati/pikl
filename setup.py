@@ -24,9 +24,9 @@ README = (open(os.path.join(here, 'README.rst')).read()
           open(os.path.join(here, 'CHANGES.rst')).read())
 
 if sys.version_info[:1] < (3,):
-    EXT = 'src/zodbpickle/_pickle_27.c'
+    EXT = 'src/pikl/_pickle_27.c'
 else:
-    EXT = 'src/zodbpickle/_pickle_33.c'
+    EXT = 'src/pikl/_pickle_33.c'
 
 # PyPy and jython won't build the extension.
 py_impl = getattr(platform, 'python_implementation', lambda: None)
@@ -36,21 +36,21 @@ is_pure = 'PURE_PYTHON' in os.environ
 if is_pypy or is_jython or is_pure:
     ext_modules = []
 else:
-    ext_modules = [Extension(name='zodbpickle._pickle',
+    ext_modules = [Extension(name='pikl._pickle',
                              sources=[EXT])]
 
 
 setup(
-    name='zodbpickle',
-    version='1.0.3.dev0',
-    description='Fork of Python 3 pickle module.',
-    author='Python and Zope Foundation',
-    author_email='zodb-dev@zope.org',
-    url='https://github.com/zopefoundation/zodbpickle',
+    name='pikl',
+    version='0.0.1',
+    description='A rehabilitated, less dangerous pickle.',
+    author='Alex Willmer',
+    author_email='alex@moreati.org.uk',
+    url='https://github.com/moreati/pikl',
     license='PSFL 2 and ZPL 2.1',
     long_description=README,
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: Zope Public License',
         'License :: OSI Approved :: Python Software Foundation License',
         'Programming Language :: Python',
@@ -64,14 +64,13 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
         'Programming Language :: Python :: Implementation :: Jython',
-        'Framework :: ZODB',
         'Topic :: Database',
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Operating System :: Microsoft :: Windows',
         'Operating System :: Unix',
         'Operating System :: MacOS :: MacOS X',
     ],
-    keywords='zodb pickle',
+    keywords='pickle',
     platforms=['any'],
     packages=find_packages('src'),
     package_dir={'': 'src'},
@@ -80,7 +79,7 @@ setup(
         'test': [],
         'testing': ['nose', 'coverage'],
     },
-    test_suite='zodbpickle.tests.test_pickle.test_suite',
+    test_suite='pikl.tests.test_pickle.test_suite',
     install_requires=[
         'setuptools',
     ],

@@ -619,7 +619,7 @@ float8 = ArgumentDescriptor(
 
 # Protocol 2 formats
 
-from zodbpickle.pickle_2 import decode_long
+from pikl.pickle_2 import decode_long
 
 def read_long1(f):
     r"""
@@ -1039,7 +1039,7 @@ opcodes = [
       stack_before=[],
       stack_after=[pystring],
       proto=3,
-      doc="""Push a zodbpickle.binary object.
+      doc="""Push a pikl.binary object.
 
       On Py3k, these objects will be unpickled as bytes.
 
@@ -1054,7 +1054,7 @@ opcodes = [
       stack_before=[],
       stack_after=[pystring],
       proto=3,
-      doc="""Push a zodbpickle.binary object.
+      doc="""Push a pikl.binary object.
 
       On Py3k, these objects will be unpickled as bytes.
 
@@ -1796,7 +1796,7 @@ del d
 
 def assure_pickle_consistency(verbose=False):
     import re
-    from zodbpickle import pickle_2 as pickle
+    from pikl import pickle_2 as pickle
 
     copy = code2op.copy()
     for name in pickle.__all__:
@@ -2121,34 +2121,34 @@ highest protocol among opcodes = 1
 
 Exercise the INST/OBJ/BUILD family.
 
->>> from zodbpickle import pickletools_2 as pickletools
+>>> from pikl import pickletools_2 as pickletools
 >>> dis(pickle.dumps(pickletools.dis, 0))
-    0: c    GLOBAL     'zodbpickle.pickletools_2 dis'
-   30: p    PUT        0
-   33: .    STOP
+    0: c    GLOBAL     'pikl.pickletools_2 dis'
+   24: p    PUT        0
+   27: .    STOP
 highest protocol among opcodes = 0
 
->>> from zodbpickle.pickletools_2 import _Example
+>>> from pikl.pickletools_2 import _Example
 >>> x = [_Example(42)] * 2
 >>> dis(pickle.dumps(x, 0))
     0: (    MARK
     1: l        LIST       (MARK at 0)
     2: p    PUT        0
     5: (    MARK
-    6: i        INST       'zodbpickle.pickletools_2 _Example' (MARK at 5)
-   41: p    PUT        1
-   44: (    MARK
-   45: d        DICT       (MARK at 44)
-   46: p    PUT        2
-   49: S    STRING     'value'
-   58: p    PUT        3
-   61: I    INT        42
-   65: s    SETITEM
-   66: b    BUILD
-   67: a    APPEND
-   68: g    GET        1
-   71: a    APPEND
-   72: .    STOP
+    6: i        INST       'pikl.pickletools_2 _Example' (MARK at 5)
+   35: p    PUT        1
+   38: (    MARK
+   39: d        DICT       (MARK at 38)
+   40: p    PUT        2
+   43: S    STRING     'value'
+   52: p    PUT        3
+   55: I    INT        42
+   59: s    SETITEM
+   60: b    BUILD
+   61: a    APPEND
+   62: g    GET        1
+   65: a    APPEND
+   66: .    STOP
 highest protocol among opcodes = 0
 
 >>> dis(pickle.dumps(x, 1))
@@ -2156,20 +2156,20 @@ highest protocol among opcodes = 0
     1: q    BINPUT     0
     3: (    MARK
     4: (        MARK
-    5: c            GLOBAL     'zodbpickle.pickletools_2 _Example'
-   40: q            BINPUT     1
-   42: o            OBJ        (MARK at 4)
-   43: q        BINPUT     2
-   45: }        EMPTY_DICT
-   46: q        BINPUT     3
-   48: U        SHORT_BINSTRING 'value'
-   55: q        BINPUT     4
-   57: K        BININT1    42
-   59: s        SETITEM
-   60: b        BUILD
-   61: h        BINGET     2
-   63: e        APPENDS    (MARK at 3)
-   64: .    STOP
+    5: c            GLOBAL     'pikl.pickletools_2 _Example'
+   34: q            BINPUT     1
+   36: o            OBJ        (MARK at 4)
+   37: q        BINPUT     2
+   39: }        EMPTY_DICT
+   40: q        BINPUT     3
+   42: U        SHORT_BINSTRING 'value'
+   49: q        BINPUT     4
+   51: K        BININT1    42
+   53: s        SETITEM
+   54: b        BUILD
+   55: h        BINGET     2
+   57: e        APPENDS    (MARK at 3)
+   58: .    STOP
 highest protocol among opcodes = 1
 
 Try "the canonical" recursive-object test.
