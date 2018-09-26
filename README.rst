@@ -25,9 +25,9 @@ This package is an attempt to create a rehabilitated pickle module:
 
 - Protocol 3 is the default protocol on both Python 2.x and Python 3.x
 
-``pikl`` is derived from `zodbpickle`_, a uniform pickling interface for ZODB:
+``pikl`` is derived from zodbpickle_, a uniform pickling interface for ZODB.
 
-.. zodbpickle: https://github.com/zopefoundation/zodbpickle
+.. _zodbpickle: https://github.com/zopefoundation/zodbpickle
 
 Caution
 -------
