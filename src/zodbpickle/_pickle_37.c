@@ -1,12 +1,186 @@
-
-/* Core extension modules are built-in on some platforms (e.g. Windows). */
-#ifdef Py_BUILD_CORE
-#define Py_BUILD_CORE_BUILTIN
-#undef Py_BUILD_CORE
-#endif
-
 #include "Python.h"
 #include "structmember.h"
+
+#ifndef PyDict_GET_SIZE
+#define PyDict_GET_SIZE(mp) PyDict_Size(mp)
+#endif
+
+#ifndef Py_UNREACHABLE
+#define Py_UNREACHABLE() assert(0)
+#endif
+
+#ifndef PyImport_GetModule
+#define PyImport_GetModule(modname) PyDict_GetItem(PyImport_GetModuleDict(), modname)
+#endif
+
+#ifndef _PyObject_LookupAttr
+PyObject *
+_PyObject_GenericGetAttrWithDict37(PyObject *obj, PyObject *name,
+                                   PyObject *dict, int suppress)
+{
+    /* Make sure the logic of _PyObject_GetMethod is in sync with
+       this method.
+
+       When suppress=1, this function suppress AttributeError.
+    */
+
+    PyTypeObject *tp = Py_TYPE(obj);
+    PyObject *descr = NULL;
+    PyObject *res = NULL;
+    descrgetfunc f;
+    Py_ssize_t dictoffset;
+    PyObject **dictptr;
+
+    if (!PyUnicode_Check(name)){
+        PyErr_Format(PyExc_TypeError,
+                     "attribute name must be string, not '%.200s'",
+                     name->ob_type->tp_name);
+        return NULL;
+    }
+    Py_INCREF(name);
+
+    if (tp->tp_dict == NULL) {
+        if (PyType_Ready(tp) < 0)
+            goto done;
+    }
+
+    descr = _PyType_Lookup(tp, name);
+
+    f = NULL;
+    if (descr != NULL) {
+        Py_INCREF(descr);
+        f = descr->ob_type->tp_descr_get;
+        if (f != NULL && PyDescr_IsData(descr)) {
+            res = f(descr, obj, (PyObject *)obj->ob_type);
+            if (res == NULL && suppress &&
+                    PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                PyErr_Clear();
+            }
+            goto done;
+        }
+    }
+
+    if (dict == NULL) {
+        /* Inline _PyObject_GetDictPtr */
+        dictoffset = tp->tp_dictoffset;
+        if (dictoffset != 0) {
+            if (dictoffset < 0) {
+                Py_ssize_t tsize;
+                size_t size;
+
+                tsize = ((PyVarObject *)obj)->ob_size;
+                if (tsize < 0)
+                    tsize = -tsize;
+                size = _PyObject_VAR_SIZE(tp, tsize);
+                assert(size <= PY_SSIZE_T_MAX);
+
+                dictoffset += (Py_ssize_t)size;
+                assert(dictoffset > 0);
+                assert(dictoffset % SIZEOF_VOID_P == 0);
+            }
+            dictptr = (PyObject **) ((char *)obj + dictoffset);
+            dict = *dictptr;
+        }
+    }
+    if (dict != NULL) {
+        Py_INCREF(dict);
+        res = PyDict_GetItem(dict, name);
+        if (res != NULL) {
+            Py_INCREF(res);
+            Py_DECREF(dict);
+            goto done;
+        }
+        Py_DECREF(dict);
+    }
+
+    if (f != NULL) {
+        res = f(descr, obj, (PyObject *)Py_TYPE(obj));
+        if (res == NULL && suppress &&
+                PyErr_ExceptionMatches(PyExc_AttributeError)) {
+            PyErr_Clear();
+        }
+        goto done;
+    }
+
+    if (descr != NULL) {
+        res = descr;
+        descr = NULL;
+        goto done;
+    }
+
+    if (!suppress) {
+        PyErr_Format(PyExc_AttributeError,
+                     "'%.50s' object has no attribute '%U'",
+                     tp->tp_name, name);
+    }
+  done:
+    Py_XDECREF(descr);
+    Py_DECREF(name);
+    return res;
+}
+
+int
+_PyObject_LookupAttr(PyObject *v, PyObject *name, PyObject **result)
+{
+    PyTypeObject *tp = Py_TYPE(v);
+
+    if (!PyUnicode_Check(name)) {
+        PyErr_Format(PyExc_TypeError,
+                     "attribute name must be string, not '%.200s'",
+                     name->ob_type->tp_name);
+        *result = NULL;
+        return -1;
+    }
+
+    if (tp->tp_getattro == PyObject_GenericGetAttr) {
+        *result = _PyObject_GenericGetAttrWithDict37(v, name, NULL, 1);
+        if (*result != NULL) {
+            return 1;
+        }
+        if (PyErr_Occurred()) {
+            return -1;
+        }
+        return 0;
+    }
+    if (tp->tp_getattro != NULL) {
+        *result = (*tp->tp_getattro)(v, name);
+    }
+    else if (tp->tp_getattr != NULL) {
+        const char *name_str = PyUnicode_AsUTF8(name);
+        if (name_str == NULL) {
+            *result = NULL;
+            return -1;
+        }
+        *result = (*tp->tp_getattr)(v, (char *)name_str);
+    }
+    else {
+        *result = NULL;
+        return 0;
+    }
+
+    if (*result != NULL) {
+        return 1;
+    }
+    if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
+        return -1;
+    }
+    PyErr_Clear();
+    return 0;
+}
+#endif
+
+#ifndef _PyObject_LookupAttrId
+int
+_PyObject_LookupAttrId(PyObject *v, _Py_Identifier *name, PyObject **result)
+{
+    PyObject *oname = _PyUnicode_FromId(name); /* borrowed */
+    if (!oname) {
+        *result = NULL;
+        return -1;
+    }
+    return  _PyObject_LookupAttr(v, oname, result);
+}
+#endif
 
 PyDoc_STRVAR(pickle_module_doc,
 "Optimized C implementation for the Python pickle module.");
@@ -697,7 +871,7 @@ static int save_reduce(PicklerObject *, PyObject *, PyObject *);
 static PyTypeObject Pickler_Type;
 static PyTypeObject Unpickler_Type;
 
-#include "clinic/_pickle.c.h"
+#include "clinic/_pickle_37.c.h"
 
 /*************************************************************************
  A custom hashtable mapping void* to Python ints. This is used by the pickler
