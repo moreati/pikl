@@ -3,8 +3,6 @@ import copyreg
 import dbm
 import io
 import functools
-import pickle
-import pickletools
 import struct
 import sys
 import unittest
@@ -17,7 +15,10 @@ from test.support import (
     _2G, _4G, bigmemtest,
     )
 
-from pickle import bytes_types
+from zodbpickle import pickle_37 as pickle
+from zodbpickle.pickle_37 import bytes_types
+from zodbpickle import pickletools_37 as pickletools
+
 
 requires_32b = unittest.skipUnless(sys.maxsize < 2**32,
                                    "test is only meaningful on 32-bit builds")

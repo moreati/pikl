@@ -24,7 +24,7 @@ class TestImportability(unittest.TestCase):
 def test_suite():
     import sys
     if sys.version_info[0] >= 3:
-        from .test_pickle_3 import test_suite
+        from .test_pickle_37 import test_suite
     else:
         from .test_pickle_2 import test_suite
     return unittest.TestSuite((

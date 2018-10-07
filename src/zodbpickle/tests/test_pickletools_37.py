@@ -1,8 +1,10 @@
-import pickle
-import pickletools
 from test import support
 from test.pickletester import AbstractPickleTests
 import unittest
+
+from zodbpickle import pickle_37 as pickle
+from zodbpickle import pickletools_37 as pickletool
+
 
 class OptimizedPickleTests(AbstractPickleTests):
 

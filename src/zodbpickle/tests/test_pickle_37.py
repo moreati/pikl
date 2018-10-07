@@ -1,27 +1,28 @@
 from _compat_pickle import (IMPORT_MAPPING, REVERSE_IMPORT_MAPPING,
                             NAME_MAPPING, REVERSE_NAME_MAPPING)
 import builtins
-import pickle
 import io
 import collections
 import struct
 import sys
 import weakref
 
+import doctest
 import unittest
 from test import support
 
-from test.pickletester import AbstractUnpickleTests
-from test.pickletester import AbstractPickleTests
-from test.pickletester import AbstractPickleModuleTests
-from test.pickletester import AbstractPersistentPicklerTests
-from test.pickletester import AbstractIdentityPersistentPicklerTests
-from test.pickletester import AbstractPicklerUnpicklerObjectTests
-from test.pickletester import AbstractDispatchTableTests
-from test.pickletester import BigmemPickleTests
+from zodbpickle import pickle_37 as pickle
+from .pickletester_37 import AbstractUnpickleTests
+from .pickletester_37 import AbstractPickleTests
+from .pickletester_37 import AbstractPickleModuleTests
+from .pickletester_37 import AbstractPersistentPicklerTests
+from .pickletester_37 import AbstractIdentityPersistentPicklerTests
+from .pickletester_37 import AbstractPicklerUnpicklerObjectTests
+from .pickletester_37 import AbstractDispatchTableTests
+from .pickletester_37 import BigmemPickleTests
 
 try:
-    import _pickle
+    from zodbpickle import _pickle
     has_c_implementation = True
 except ImportError:
     has_c_implementation = False
@@ -494,7 +495,7 @@ class CompatPickleTests(unittest.TestCase):
                                  ('multiprocessing.context', name))
 
 
-def test_main():
+def choose_tests():
     tests = [PyPickleTests, PyUnpicklerTests, PyPicklerTests,
              PyPersPicklerTests, PyIdPersPicklerTests,
              PyDispatchTableTests, PyChainDispatchTableTests,
@@ -507,6 +508,19 @@ def test_main():
                       CPicklerUnpicklerObjectTests,
                       CDispatchTableTests, CChainDispatchTableTests,
                       InMemoryPickleTests, SizeofTests])
+    return tests
+
+
+def test_suite():
+    return unittest.TestSuite([
+        unittest.makeSuite(t) for t in choose_tests()
+    ] + [
+        doctest.DocTestSuite(pickle),
+    ])
+
+
+def test_main():
+    tests = choose_tests()
     support.run_unittest(*tests)
     support.run_doctest(pickle)
 
