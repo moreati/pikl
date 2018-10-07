@@ -1315,6 +1315,7 @@ class _Unpickler:
         # Stack is ... markobject classobject arg1 arg2 ...
         k = self.marker()
         klass = self.stack.pop(k+1)
+        # TODO Why doesn't this call self.append(None)?
     nl_dispatch[OBJ[0]] = noload_obj
 
     def noload_inst(self):
@@ -1382,6 +1383,8 @@ class _Unpickler:
         state = self.stack.pop()
     nl_dispatch[BUILD[0]] = noload_build
 
+    # TODO Why do these call get_extension, which instatiates the object?
+    # TODO Could these call self.append()? Avoids an attribute lookup
     def noload_ext1(self):
         code = ord(self.read(1))
         self.get_extension(code)
