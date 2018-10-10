@@ -7,6 +7,7 @@ import struct
 import sys
 import weakref
 
+import doctest
 import unittest
 from test import support
 
@@ -494,7 +495,7 @@ class CompatPickleTests(unittest.TestCase):
                                  ('multiprocessing.context', name))
 
 
-def test_main():
+def choose_tests():
     tests = [PyPickleTests, PyUnpicklerTests, PyPicklerTests,
              PyPersPicklerTests, PyIdPersPicklerTests,
              PyDispatchTableTests, PyChainDispatchTableTests,
@@ -507,6 +508,18 @@ def test_main():
                       CPicklerUnpicklerObjectTests,
                       CDispatchTableTests, CChainDispatchTableTests,
                       InMemoryPickleTests, SizeofTests])
+    return tests
+
+
+def test_suite():
+    return unittest.TestSuite([
+        unittest.makeSuite(t) for t in choose_tests()
+    ] + [
+        doctest.DocTestSuite(pickle),
+    ])
+
+
+def test_main():
     support.run_unittest(*tests)
     support.run_doctest(pickle)
 
