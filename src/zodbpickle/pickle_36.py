@@ -1559,7 +1559,7 @@ def _loads(s, *, fix_imports=True, encoding="ASCII", errors="strict"):
 
 # Use the faster _pickle if possible
 try:
-    from _pickle import (
+    from ._pickle_36 import (
         PickleError,
         PicklingError,
         UnpicklingError,

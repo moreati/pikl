@@ -12,9 +12,10 @@ dis(pickle, out=None, memo=None, indentlevel=4)
 
 import codecs
 import io
-import pickle
 import re
 import sys
+
+from . import pickle_36 as pickle
 
 __all__ = ['dis', 'genops', 'optimize']
 

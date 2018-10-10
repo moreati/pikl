@@ -26,7 +26,7 @@ README = (open(os.path.join(here, 'README.rst')).read()
 if sys.version_info[:1] < (3,):
     EXT = 'src/zodbpickle/_pickle_27.c'
 else:
-    EXT = 'src/zodbpickle/_pickle_33.c'
+    EXT = 'src/zodbpickle/_pickle_36.c'
 
 # PyPy and jython won't build the extension.
 py_impl = getattr(platform, 'python_implementation', lambda: None)

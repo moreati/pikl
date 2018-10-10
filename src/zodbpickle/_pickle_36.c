@@ -693,7 +693,7 @@ static int save_reduce(PicklerObject *, PyObject *, PyObject *);
 static PyTypeObject Pickler_Type;
 static PyTypeObject Unpickler_Type;
 
-#include "clinic/_pickle.c.h"
+#include "clinic/_pickle_36.c.h"
 
 /*************************************************************************
  A custom hashtable mapping void* to Python ints. This is used by the pickler

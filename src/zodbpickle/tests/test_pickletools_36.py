@@ -1,8 +1,9 @@
-import pickle
-import pickletools
 from test import support
-from test.pickletester import AbstractPickleTests
 import unittest
+
+import ..pickle_36 as pickle
+import ..pickletools_36 as pickletools
+from .pickletester_36 import AbstractPickleTests
 
 class OptimizedPickleTests(AbstractPickleTests):
 

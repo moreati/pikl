@@ -1,7 +1,6 @@
 from _compat_pickle import (IMPORT_MAPPING, REVERSE_IMPORT_MAPPING,
                             NAME_MAPPING, REVERSE_NAME_MAPPING)
 import builtins
-import pickle
 import io
 import collections
 import struct
@@ -11,17 +10,18 @@ import weakref
 import unittest
 from test import support
 
-from test.pickletester import AbstractUnpickleTests
-from test.pickletester import AbstractPickleTests
-from test.pickletester import AbstractPickleModuleTests
-from test.pickletester import AbstractPersistentPicklerTests
-from test.pickletester import AbstractIdentityPersistentPicklerTests
-from test.pickletester import AbstractPicklerUnpicklerObjectTests
-from test.pickletester import AbstractDispatchTableTests
-from test.pickletester import BigmemPickleTests
+from .. import pickle_36 as pickle
+from .pickletester_36 import AbstractUnpickleTests
+from .pickletester_36 import AbstractPickleTests
+from .pickletester_36 import AbstractPickleModuleTests
+from .pickletester_36 import AbstractPersistentPicklerTests
+from .pickletester_36 import AbstractIdentityPersistentPicklerTests
+from .pickletester_36 import AbstractPicklerUnpicklerObjectTests
+from .pickletester_36 import AbstractDispatchTableTests
+from .pickletester_36 import BigmemPickleTests
 
 try:
-    import _pickle
+    from .. import _pickle
     has_c_implementation = True
 except ImportError:
     has_c_implementation = False
