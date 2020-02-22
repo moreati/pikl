@@ -34,7 +34,7 @@ Caution
 
 ``pikl`` is ultimately derived from Python's ``pickle`` module.
 Although efforts have been made to remove identified security vulnerabilities,
-it is almost certain that more vulneravilities remain.
+it is almost certain that other vulnerabilities remain.
 
 The ``pickle`` module is not intended to be secure against erroneous or
 maliciously constructed data. Never unpickle data received from an
